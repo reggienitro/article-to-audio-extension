@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Article to Audio</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">
+        <span class="icon">🎧</span>
+        <h1>Article to Audio</h1>
+      </div>
+    </header>
+
+    <div class="current-page">
+      <label for="url-input">Current Page:</label>
+      <div class="url-display">
+        <input type="text" id="url-input" placeholder="Loading current page..." readonly>
+        <button id="refresh-url" title="Refresh URL">🔄</button>
+      </div>
+    </div>
+
+    <div class="settings">
+      <div class="setting-group">
+        <label for="voice-select">Voice:</label>
+        <select id="voice-select">
+          <option value="christopher" selected>👨 Christopher (Deep, Authoritative)</option>
+          <option value="guy">👨 Guy (Rich, Passionate)</option>
+          <option value="eric">👨 Eric (Rational, Mature)</option>
+          <option value="andrew">👨 Andrew (Warm, Confident)</option>
+          <option value="aria">👩 Aria (Clear, Positive)</option>
+          <option value="ava">👩 Ava (Expressive, Caring)</option>
+        </select>
+      </div>
+
+      <div class="setting-group">
+        <label for="speed-select">Speed:</label>
+        <select id="speed-select">
+          <option value="slow">🐌 Slow (Relaxed)</option>
+          <option value="normal">⚡ Normal (Standard)</option>
+          <option value="fast" selected>🚀 Fast (Efficient)</option>
+          <option value="very_fast">💨 Very Fast (Rapid)</option>
+        </select>
+      </div>
+
+      <div class="setting-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="save-audio" checked>
+          <span class="checkmark">💾</span>
+          Save to Audio Library
+        </label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="convert-btn" class="primary-btn">
+        <span class="btn-icon">🎤</span>
+        Convert Article to Audio
+      </button>
+      
+      <button id="test-btn" class="secondary-btn">
+        <span class="btn-icon">🧪</span>
+        Test Current Page
+      </button>
+    </div>
+
+    <div class="status" id="status">
+      <div class="status-icon">ℹ️</div>
+      <span class="status-text">Ready to convert articles to audio</span>
+    </div>
+
+    <div class="progress" id="progress" style="display: none;">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="progress-text" id="progress-text">Processing...</div>
+    </div>
+
+    <footer class="footer">
+      <div class="links">
+        <button id="settings-btn" class="link-btn">⚙️ Settings</button>
+        <button id="library-btn" class="link-btn">📚 Audio Library</button>
+        <button id="help-btn" class="link-btn">❓ Help</button>
+      </div>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

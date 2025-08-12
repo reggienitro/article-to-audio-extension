@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Article to Audio Server Connection</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056CC;
+        }
+        .result {
+            background: #e8f4ff;
+            border-left: 4px solid #007AFF;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #e8f8e8;
+            border-color: #28a745;
+        }
+        .error {
+            background: #ffe8e8;
+            border-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎧 Article to Audio Server Test</h1>
+    
+    <p>This page tests the connection to the local server that bridges the browser extension to the CLI.</p>
+    
+    <div class="test-section">
+        <h2>Test Server Connection</h2>
+        <button onclick="testStatus()">Test Status Endpoint</button>
+        <button onclick="testConversion()">Test Conversion Endpoint</button>
+        <div id="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Instructions</h2>
+        <ol>
+            <li><strong>Start the server first:</strong>
+                <div class="result">cd "/Users/aettefagh/AI projects/claude-tools/article-to-audio-extension"
+python3 debug-server.py</div>
+            </li>
+            <li><strong>Then click the test buttons above</strong></li>
+            <li><strong>If tests pass:</strong> Your extension should work!</li>
+            <li><strong>If tests fail:</strong> Check console for error details</li>
+        </ol>
+    </div>
+
+    <script>
+        const SERVER_URL = 'http://localhost:8888';
+        
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            results.appendChild(div);
+            console.log(message);
+        }
+        
+        async function testStatus() {
+            addResult('Testing status endpoint...');
+            
+            try {
+                const response = await fetch(`${SERVER_URL}/status`);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✅ Status test passed: ${JSON.stringify(result)}`, 'success');
+                } else {
+                    addResult(`❌ Status test failed: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Status test error: ${error.message}`, 'error');
+                addResult(`💡 Make sure server is running on port 8888`, 'error');
+            }
+        }
+        
+        async function testConversion() {
+            addResult('Testing conversion endpoint...');
+            
+            try {
+                const payload = {
+                    url: 'https://www.bbc.com/news/articles/c5yll33v9gwo',
+                    voice: 'christopher',
+                    speed: 'fast',
+                    save_to_storage: false
+                };
+                
+                const response = await fetch(`${SERVER_URL}/convert`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    addResult(`✅ Conversion test passed: ${JSON.stringify(result)}`, 'success');
+                } else {
+                    addResult(`❌ Conversion test failed: ${response.status}`, 'error');
+                }
+                
+            } catch (error) {
+                addResult(`❌ Conversion test error: ${error.message}`, 'error');
+                addResult(`💡 Make sure server is running on port 8888`, 'error');
+            }
+        }
+        
+        // Test connection on page load
+        window.onload = function() {
+            addResult('Page loaded. Click buttons to test server connection.');
+        };
+    </script>
+</body>
+</html>
