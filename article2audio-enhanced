@@ -1,0 +1,1110 @@
+#!/usr/bin/env python3
+"""
+Article-to-Audio Enhanced Production CLI
+Improved version based on real website testing
+"""
+
+import argparse
+import asyncio
+import json
+import os
+import sys
+import time
+import re
+from pathlib import Path
+from urllib.parse import urlparse
+import requests
+from bs4 import BeautifulSoup
+
+# Configuration (same as before)
+CONFIG_DIR = Path.home() / "model-finetuning-project" / "config"
+CONFIG_FILE = CONFIG_DIR / "article2audio.json"
+DATA_DIR = Path.home() / "model-finetuning-project" / "data"
+AUDIO_DIR = DATA_DIR / "audio"
+CACHE_DIR = DATA_DIR / "cache"
+
+# iCloud Drive path for cross-device sync
+ICLOUD_DIR = Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs" / "ArticleAudio"
+
+DEFAULT_CONFIG = {
+    "voices": {
+        "christopher": "en-US-ChristopherNeural",
+        "guy": "en-US-GuyNeural",
+        "eric": "en-US-EricNeural",
+        "andrew": "en-US-AndrewNeural",
+        "aria": "en-US-AriaNeural",
+        "ava": "en-US-AvaNeural"
+    },
+    "speeds": {
+        "slow": "+0%",
+        "normal": "+10%", 
+        "fast": "+20%",
+        "very_fast": "+40%"
+    },
+    "defaults": {
+        "voice": "christopher",
+        "speed": "fast",
+        "save_to_storage": False
+    },
+    "voice_shuffle": {
+        "enabled": False,
+        "favorites": ["christopher", "guy", "eric"],
+        "algorithm": "sequential",  # sequential, random, smart
+        "current_index": 0
+    },
+    "cloud_sync": {
+        "enabled": False,
+        "provider": "icloud",  # icloud, gdrive, dropbox
+        "auto_upload": True,
+        "sync_metadata": True,
+        "icloud_path": str(ICLOUD_DIR)
+    }
+}
+
+class EnhancedArticleExtractor:
+    """Enhanced article extraction based on real website testing"""
+    
+    def __init__(self, cookies=None):
+        self.session = requests.Session()
+        self.session.headers.update(self.get_realistic_headers())
+        
+        # Add authentication cookies if provided
+        if cookies:
+            self.add_cookies(cookies)
+    
+    def get_realistic_headers(self):
+        """More realistic headers to avoid blocking"""
+        return {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Cache-Control': 'max-age=0'
+        }
+    
+    def enhanced_content_selectors(self):
+        """Enhanced content selectors based on testing"""
+        return [
+            # NYT-specific selectors (high priority)
+            'section[name="articleBody"]',
+            '.StoryBodyCompanionColumn',
+            '.css-53u6y8',  # NYT article content class
+            
+            # Primary article selectors (most reliable)
+            'article',
+            '[role="main"] article',
+            '.article-content',
+            '.post-content',
+            '.entry-content',
+            
+            # News-specific selectors
+            '.story-body',
+            '.article-body',
+            '.post-body',
+            '.content-body',
+            '.story-content',
+            
+            # Blog-specific selectors
+            '.post-full-content',
+            '.entry-body',
+            '.article-wrap .content',
+            
+            # Fallback selectors
+            'main .content',
+            '.main-content',
+            '#content',
+            '.content'
+        ]
+    
+    def enhanced_title_selectors(self):
+        """Enhanced title selectors"""
+        return [
+            'h1',
+            '.article-title h1',
+            '.post-title h1', 
+            '.headline',
+            '.article-headline',
+            '.entry-title',
+            '.story-headline',
+            'title'  # Fallback
+        ]
+    
+    def detect_early_paywall(self, page_text, url):
+        """Early paywall detection using page text and URL patterns"""
+        # NYT-specific early detection
+        if 'nytimes.com' in url:
+            nyt_paywall_patterns = [
+                'we are having trouble retrieving the article content',
+                'thank you for your patience while we verify access',
+                'log into your times account',
+                'enable javascript in your browser settings'
+            ]
+            for pattern in nyt_paywall_patterns:
+                if pattern in page_text:
+                    return True
+        
+        # General early paywall indicators
+        early_indicators = [
+            'subscribe to continue',
+            'subscription required',
+            'premium content',
+            'this article is for subscribers only',
+            'register to continue reading'
+        ]
+        
+        for indicator in early_indicators:
+            if indicator in page_text:
+                return True
+                
+        return False
+    
+    def detect_paywall(self, soup, content):
+        """Enhanced paywall detection with NYT-specific patterns"""
+        paywall_indicators = {
+            'text_patterns': [
+                'subscribe to continue reading',
+                'this article is for subscribers only',
+                'premium content',
+                'become a member to continue',
+                'sign up to read more',
+                'login to view full article',
+                'subscription required',
+                'this content requires a subscription',
+                'still verifying access',
+                'only a snippet',
+                'create a free account',
+                'register to continue reading',
+                # NYT-specific patterns
+                'we are having trouble retrieving the article content',
+                'please enable javascript in your browser settings',
+                'thank you for your patience while we verify access',
+                'log into your times account',
+                'already a want all of the times',
+                'if you are in reader mode please exit',
+                'to continue reading',
+                'subscribe now',
+                'log in to continue'
+            ],
+            'class_patterns': [
+                'paywall', 'subscription-wall', 'premium-content',
+                'subscriber-only', 'locked-content'
+            ],
+            'id_patterns': [
+                'paywall', 'subscription', 'premium-gate'
+            ]
+        }
+        
+        # Check for paywall elements
+        for pattern in paywall_indicators['class_patterns']:
+            if soup.find(class_=re.compile(pattern, re.I)):
+                return True
+        
+        for pattern in paywall_indicators['id_patterns']:
+            if soup.find(id=re.compile(pattern, re.I)):
+                return True
+        
+        # Check content for paywall text
+        content_lower = content.lower()
+        paywall_matches = sum(1 for pattern in paywall_indicators['text_patterns'] 
+                            if pattern in content_lower)
+        
+        # If multiple paywall indicators and short content, likely paywalled
+        return paywall_matches >= 2 and len(content.split()) < 200
+    
+    def remove_duplicate_content(self, content):
+        """Remove duplicate paragraphs and sentences from extracted content"""
+        if not content:
+            return ""
+        
+        # Split into sentences for deduplication
+        sentences = re.split(r'[.!?]+\s+', content)
+        seen_sentences = set()
+        unique_sentences = []
+        
+        for sentence in sentences:
+            # Clean sentence for comparison (remove extra whitespace, normalize)
+            clean_sentence = re.sub(r'\s+', ' ', sentence.strip().lower())
+            
+            # Skip very short sentences or empty ones
+            if len(clean_sentence) < 20:
+                continue
+                
+            # Check for substantial similarity (not exact duplicates)
+            is_duplicate = False
+            for seen in seen_sentences:
+                # If 80%+ of words overlap, consider duplicate
+                seen_words = set(seen.split())
+                sentence_words = set(clean_sentence.split())
+                if len(seen_words) > 0:
+                    overlap = len(seen_words & sentence_words) / len(seen_words | sentence_words)
+                    if overlap > 0.8:
+                        is_duplicate = True
+                        break
+            
+            if not is_duplicate:
+                seen_sentences.add(clean_sentence)
+                unique_sentences.append(sentence.strip())
+        
+        return '. '.join(unique_sentences) + '.' if unique_sentences else ""
+    
+    def clean_extracted_content(self, content):
+        """Enhanced content cleaning with deduplication based on testing"""
+        if not content:
+            return ""
+        
+        # First remove duplicate paragraphs/sentences
+        content = self.remove_duplicate_content(content)
+        
+        # Remove common web artifacts
+        patterns_to_remove = [
+            # Navigation and UI elements
+            r'(Skip to main content|Skip to content)',
+            r'(Subscribe|Sign up|Newsletter).*?(\.|$)',
+            r'(Share on|Follow us on).*?(\.|$)',
+            r'Advertisement.*?(\.|$)',
+            r'Click here.*?(\.|$)',
+            r'Read more.*?(\.|$)',
+            
+            # Copyright and metadata
+            r'©.*?(\d{4}|\.|$)',
+            r'All rights reserved.*?(\.|$)',
+            r'This article was (originally )?published.*?(\.|$)',
+            r'Updated:.*?(\.|$)',
+            r'Published:.*?(\.|$)',
+            
+            # Social and sharing
+            r'Tweet.*?(\.|$)',
+            r'Facebook.*?(\.|$)',
+            r'LinkedIn.*?(\.|$)',
+            
+            # Comments and interactions
+            r'Comments.*?(\.|$)',
+            r'Leave a comment.*?(\.|$)',
+            r'\d+ comments?.*?(\.|$)'
+        ]
+        
+        for pattern in patterns_to_remove:
+            content = re.sub(pattern, '', content, flags=re.IGNORECASE)
+        
+        # Clean up formatting
+        content = re.sub(r'\s+', ' ', content)  # Multiple spaces
+        content = re.sub(r'\n\s*\n', '\n\n', content)  # Multiple newlines
+        
+        # Improve pronunciation
+        replacements = {
+            '&': ' and ',
+            '@': ' at ',
+            '#': ' hashtag ',
+            'vs.': 'versus',
+            'etc.': 'etcetera',
+            'i.e.': 'that is',
+            'e.g.': 'for example',
+            'w/': 'with',
+            'w/o': 'without'
+        }
+        
+        for old, new in replacements.items():
+            content = content.replace(old, new)
+        
+        # Remove excessive punctuation
+        content = re.sub(r'\.{3,}', '...', content)
+        content = re.sub(r'-{2,}', ' - ', content)
+        
+        return content.strip()
+    
+    def add_cookies(self, cookie_string):
+        """Add authentication cookies to the session"""
+        try:
+            # Parse cookie string (format: "name1=value1; name2=value2")
+            if cookie_string and cookie_string.strip():
+                for cookie_pair in cookie_string.split(';'):
+                    if '=' in cookie_pair:
+                        name, value = cookie_pair.strip().split('=', 1)
+                        self.session.cookies.set(name.strip(), value.strip())
+                print(f"🔑 Added {len(self.session.cookies)} authentication cookies")
+        except Exception as e:
+            print(f"⚠️  Warning: Failed to parse cookies: {e}")
+    
+    def extract_article(self, url):
+        """Enhanced article extraction with better error handling"""
+        print(f"🌐 Fetching: {url}")
+        
+        try:
+            # Add delay to be respectful
+            time.sleep(0.5)
+            
+            response = self.session.get(url, timeout=30)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Early paywall detection - check page content immediately
+            page_text = soup.get_text().lower()
+            if self.detect_early_paywall(page_text, url):
+                print("🔒 Early paywall detection - attempting bypass immediately...")
+                bypass_result = self.try_paywall_bypass(url)
+                if bypass_result:
+                    return bypass_result
+                else:
+                    raise Exception("Article appears to be behind a paywall")
+            
+            # Remove unwanted elements more aggressively
+            unwanted_elements = [
+                'script', 'style', 'nav', 'header', 'footer', 'aside', 
+                'iframe', 'form', 'button', 'input', 'select', 'textarea',
+                '.advertisement', '.ad', '.ads', '.social-share',
+                '.comments', '.comment', '.newsletter-signup',
+                '.subscription-wall', '.paywall', '.related-articles'
+            ]
+            
+            for selector in unwanted_elements:
+                for element in soup.select(selector):
+                    element.decompose()
+            
+            # Extract title with enhanced selectors
+            title = None
+            for selector in self.enhanced_title_selectors():
+                title_elem = soup.select_one(selector)
+                if title_elem:
+                    title = title_elem.get_text(strip=True)
+                    if len(title) > 5 and len(title) < 200:  # Reasonable title
+                        break
+            
+            if not title:
+                title = "Article"
+            
+            # Extract content with enhanced selectors - preserve order
+            content = None
+            for selector in self.enhanced_content_selectors():
+                elements = soup.select(selector)
+                if elements:
+                    # Extract text preserving document order
+                    content_parts = []
+                    seen_content = set()  # Track content to avoid duplicates
+                    
+                    for elem in elements[:1]:  # Focus on primary content container
+                        # Get all paragraph elements in order
+                        paragraphs = elem.find_all(['p', 'div'], recursive=True)
+                        for p in paragraphs:
+                            text = p.get_text(strip=True)
+                            if len(text) > 20:  # Only meaningful paragraphs
+                                # Check for duplicates using full text hash for better deduplication
+                                text_key = hash(text.lower())
+                                if text_key not in seen_content:
+                                    content_parts.append(text)
+                                    seen_content.add(text_key)
+                    
+                    content = '\n\n'.join(content_parts)
+                    if len(content) > 500:  # Good amount of content
+                        break
+                    
+                    # Fallback: try original method for first element only
+                    if not content:
+                        content = elements[0].get_text(strip=True, separator='\n\n')
+                        if len(content) > 500:
+                            break
+            
+            # Fallback to paragraph extraction - preserve document order
+            if not content or len(content) < 200:
+                paragraphs = soup.find_all('p')
+                # Batch process all paragraphs at once for efficiency
+                all_texts = [(p.get_text(strip=True), hash(p.get_text(strip=True).lower())) 
+                            for p in paragraphs]
+                
+                # Deduplicate while preserving order
+                seen_hashes = set()
+                paragraph_texts = []
+                for text, text_hash in all_texts:
+                    if len(text) > 30 and text_hash not in seen_hashes:
+                        paragraph_texts.append(text)
+                        seen_hashes.add(text_hash)
+                
+                content = '\n\n'.join(paragraph_texts)
+            
+            # Final validation
+            if not content:
+                raise Exception("No article content found")
+            
+            # Check for paywall and try bypass
+            if self.detect_paywall(soup, content):
+                print("🔒 Paywall detected, trying bypass services...")
+                bypass_result = self.try_paywall_bypass(url)
+                if bypass_result:
+                    return bypass_result
+                else:
+                    raise Exception("Article appears to be behind a paywall")
+            
+            # Clean content
+            content = self.clean_extracted_content(content)
+            
+            # Final length check
+            word_count = len(content.split())
+            if word_count < 50:
+                raise Exception(f"Article too short ({word_count} words) - may be incomplete")
+            
+            print(f"✅ Article extracted successfully")
+            print(f"   Title: {title[:70]}{'...' if len(title) > 70 else ''}")
+            print(f"   Content: {len(content)} characters, {word_count} words")
+            print(f"   Estimated audio: {word_count / 180:.1f} minutes")
+            
+            # Save transcript for debugging
+            self.save_transcript(title, content, url)
+            
+            return {
+                'title': title,
+                'content': content,
+                'url': url,
+                'word_count': word_count,
+                'extraction_method': 'enhanced'
+            }
+            
+        except requests.exceptions.Timeout:
+            raise Exception("Request timed out - website took too long to respond")
+        except requests.exceptions.ConnectionError:
+            raise Exception("Connection failed - check internet connection")
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                raise Exception("Access denied - website blocks automated requests")
+            elif e.response.status_code == 404:
+                raise Exception("Article not found - URL may be incorrect")
+            elif e.response.status_code == 429:
+                raise Exception("Rate limited - too many requests to this site")
+            else:
+                raise Exception(f"HTTP error {e.response.status_code}")
+        except Exception as e:
+            if "paywall" in str(e).lower():
+                raise Exception("Article is behind a paywall or requires subscription")
+            else:
+                raise Exception(f"Failed to extract article: {e}")
+    
+    def save_transcript(self, title, content, url):
+        """Save transcript for debugging and reference"""
+        try:
+            # Create transcript filename
+            clean_title = re.sub(r'[^\w\s-]', '', title)[:40]
+            clean_title = re.sub(r'\s+', '_', clean_title)
+            timestamp = time.strftime('%Y%m%d_%H%M%S')
+            
+            transcript_filename = f"{timestamp}_{clean_title}_transcript.txt"
+            transcript_path = CACHE_DIR / transcript_filename
+            
+            # Create transcript content
+            transcript_content = f"""ARTICLE TRANSCRIPT
+Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}
+URL: {url}
+Title: {title}
+
+{'=' * 80}
+CONTENT:
+{'=' * 80}
+
+{content}
+
+{'=' * 80}
+END TRANSCRIPT
+{'=' * 80}
+"""
+            
+            # Save transcript
+            with open(transcript_path, 'w', encoding='utf-8') as f:
+                f.write(transcript_content)
+            
+            print(f"📝 Transcript saved: {transcript_path}")
+            return str(transcript_path)
+            
+        except Exception as e:
+            print(f"⚠️  Failed to save transcript: {e}")
+            return None
+    
+    def try_paywall_bypass(self, original_url):
+        """Try various paywall bypass services automatically with NYT-specific handling"""
+        
+        # Special handling for NYT URLs
+        if 'nytimes.com' in original_url:
+            nyt_bypass_services = [
+                'https://archive.today/{url}',
+                'https://12ft.io/{url}',  
+                'https://web.archive.org/web/{url}',
+                'https://outline.com/{url}'
+            ]
+            bypass_services = nyt_bypass_services
+        else:
+            bypass_services = [
+                'https://12ft.io/{url}',
+                'https://archive.ph/{url}',
+                'https://web.archive.org/web/newest/{url}'
+            ]
+        
+        for service_template in bypass_services:
+            try:
+                bypass_url = service_template.format(url=original_url)
+                print(f"🔄 Trying bypass: {bypass_url.split('//')[1].split('/')[0]}...")
+                
+                # Add delay to be respectful
+                time.sleep(2)
+                
+                response = self.session.get(bypass_url, timeout=30)
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.content, 'html.parser')
+                    
+                    # Try to extract content from bypass service
+                    bypass_content = self.extract_content_from_bypass(soup, bypass_url)
+                    if bypass_content and len(bypass_content.split()) > 100:
+                        print(f"✅ Bypass successful via {bypass_url.split('//')[1].split('/')[0]}")
+                        return {
+                            'title': self.extract_title_from_bypass(soup) or "Bypass Article",
+                            'content': bypass_content,
+                            'url': original_url,
+                            'word_count': len(bypass_content.split()),
+                            'extraction_method': 'paywall_bypass'
+                        }
+                        
+            except Exception as e:
+                print(f"❌ Bypass failed: {e}")
+                continue
+        
+        print("❌ All bypass attempts failed")
+        return None
+    
+    def extract_content_from_bypass(self, soup, bypass_url):
+        """Extract content from paywall bypass services"""
+        content_parts = []
+        
+        # Different extraction strategies for different bypass services
+        if '12ft.io' in bypass_url:
+            # 12ft.io usually preserves original structure
+            content_selectors = ['article', '.story-body', '.article-content']
+        elif 'archive.ph' in bypass_url:
+            # Archive.ph has its own structure
+            content_selectors = ['.CONTENT', 'article', '#readability-content']
+        elif 'web.archive.org' in bypass_url:
+            # Wayback machine preserves original structure
+            content_selectors = ['article', '.story-body', '.article-content', '.post-content']
+        else:
+            content_selectors = ['article', '.content', '.story-body']
+        
+        for selector in content_selectors:
+            elements = soup.select(selector)
+            if elements:
+                for elem in elements[:1]:  # Focus on first match
+                    paragraphs = elem.find_all(['p', 'div'], recursive=True)
+                    for p in paragraphs:
+                        text = p.get_text(strip=True)
+                        if len(text) > 30:  # Only meaningful paragraphs
+                            content_parts.append(text)
+                
+                if content_parts:
+                    return '\n\n'.join(content_parts)
+        
+        # Fallback: extract all paragraphs
+        paragraphs = soup.find_all('p')
+        for p in paragraphs:
+            text = p.get_text(strip=True)
+            if len(text) > 30:
+                content_parts.append(text)
+        
+        return '\n\n'.join(content_parts) if content_parts else None
+    
+    def extract_title_from_bypass(self, soup):
+        """Extract title from bypass service"""
+        title_selectors = ['h1', '.headline', '.article-title', 'title']
+        
+        for selector in title_selectors:
+            elem = soup.select_one(selector)
+            if elem:
+                title = elem.get_text(strip=True)
+                if 5 < len(title) < 200:
+                    return title
+        
+        return None
+
+class ArticleToAudioEnhanced:
+    def __init__(self, cookies=None):
+        self.config = self.load_config()
+        self.ensure_directories()
+        self.extractor = EnhancedArticleExtractor(cookies)
+    
+    def load_config(self):
+        """Load or create configuration"""
+        if CONFIG_FILE.exists():
+            with open(CONFIG_FILE, 'r') as f:
+                config = json.load(f)
+            for key in DEFAULT_CONFIG:
+                if key not in config:
+                    config[key] = DEFAULT_CONFIG[key]
+            return config
+        else:
+            CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+            with open(CONFIG_FILE, 'w') as f:
+                json.dump(DEFAULT_CONFIG, f, indent=2)
+            return DEFAULT_CONFIG.copy()
+    
+    def ensure_directories(self):
+        """Create necessary directories"""
+        AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Create iCloud directory if cloud sync is enabled
+        if self.config.get('cloud_sync', {}).get('enabled', False):
+            ICLOUD_DIR.mkdir(parents=True, exist_ok=True)
+    
+    def save_config(self):
+        """Save configuration to file"""
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(self.config, f, indent=2)
+    
+    def list_voices(self):
+        """List available voices with descriptions"""
+        print("🎤 Available Voices:")
+        print("-" * 50)
+        voice_info = {
+            "christopher": "👨 Deep, authoritative (News/Novel)",
+            "guy": "👨 Rich, passionate (News/Novel)", 
+            "eric": "👨 Rational, mature (News/Novel)",
+            "andrew": "👨 Warm, confident (Conversational)",
+            "aria": "👩 Clear, positive (News/Novel)",
+            "ava": "👩 Expressive, caring (Conversational)"
+        }
+        
+        for short_name in self.config['voices']:
+            is_default = " ⭐" if short_name == self.config['defaults']['voice'] else ""
+            desc = voice_info.get(short_name, "Voice description")
+            print(f"  {short_name:<12} {desc}{is_default}")
+    
+    def list_speeds(self):
+        """List available speeds"""
+        print("🎚️  Available Speeds:")
+        print("-" * 30)
+        speed_desc = {
+            "slow": "Relaxed pace (+0%)",
+            "normal": "Standard pace (+10%)", 
+            "fast": "Efficient pace (+20%)",
+            "very_fast": "Rapid pace (+40%)"
+        }
+        
+        for name, rate in self.config['speeds'].items():
+            is_default = " ⭐" if name == self.config['defaults']['speed'] else ""
+            desc = speed_desc.get(name, f"{rate}")
+            print(f"  {name:<12} {desc}{is_default}")
+    
+    def get_shuffled_voice(self):
+        """Get next voice from shuffle pool"""
+        shuffle_config = self.config.get('voice_shuffle', {})
+        
+        if not shuffle_config.get('enabled', False):
+            return None
+        
+        favorites = shuffle_config.get('favorites', ['christopher'])
+        algorithm = shuffle_config.get('algorithm', 'sequential')
+        current_index = shuffle_config.get('current_index', 0)
+        
+        if algorithm == 'random':
+            import random
+            voice = random.choice(favorites)
+        elif algorithm == 'smart':
+            # Smart algorithm: avoid repeating the same voice
+            voice = self.smart_voice_selection(favorites, current_index)
+        else:  # sequential
+            voice = favorites[current_index % len(favorites)]
+            # Update index for next time
+            self.config['voice_shuffle']['current_index'] = (current_index + 1) % len(favorites)
+            self.save_config()
+        
+        return voice
+    
+    def smart_voice_selection(self, favorites, current_index):
+        """Smart voice selection to maximize variety"""
+        # Group voices by characteristics
+        voice_types = {
+            'deep_authoritative': ['christopher', 'eric'],
+            'warm_conversational': ['guy', 'andrew'], 
+            'clear_professional': ['aria', 'ava']
+        }
+        
+        # Try to pick from a different category than last time
+        last_voice = favorites[(current_index - 1) % len(favorites)]
+        last_type = None
+        
+        for voice_type, voices in voice_types.items():
+            if last_voice in voices:
+                last_type = voice_type
+                break
+        
+        # Pick from different category if possible
+        other_voices = [v for v in favorites if v not in voice_types.get(last_type, [])]
+        
+        if other_voices:
+            import random
+            return random.choice(other_voices)
+        else:
+            # Fallback to sequential if no variety available
+            return favorites[current_index % len(favorites)]
+    
+    def setup_voice_shuffle(self, favorites=None, algorithm='sequential', enabled=True):
+        """Configure voice shuffle settings"""
+        if favorites:
+            self.config['voice_shuffle']['favorites'] = favorites
+        self.config['voice_shuffle']['algorithm'] = algorithm
+        self.config['voice_shuffle']['enabled'] = enabled
+        self.config['voice_shuffle']['current_index'] = 0
+        self.save_config()
+        
+        print(f"\\n🎭 Voice Shuffle Configured:")
+        print(f"   Enabled: {enabled}")
+        print(f"   Favorites: {', '.join(self.config['voice_shuffle']['favorites'])}")
+        print(f"   Algorithm: {algorithm}")
+    
+    def setup_cloud_sync(self, provider='icloud', enabled=True):
+        """Configure cloud sync settings"""
+        self.config['cloud_sync']['enabled'] = enabled
+        self.config['cloud_sync']['provider'] = provider
+        
+        if provider == 'icloud':
+            self.config['cloud_sync']['icloud_path'] = str(ICLOUD_DIR)
+        
+        self.save_config()
+        self.ensure_directories()  # Create cloud directories
+        
+        print(f"\n☁️ Cloud Sync Configured:")
+        print(f"   Enabled: {enabled}")
+        print(f"   Provider: {provider}")
+        if provider == 'icloud':
+            print(f"   iCloud Path: {ICLOUD_DIR}")
+            print(f"   iPhone Access: Files App → iCloud Drive → ArticleAudio")
+    
+    def sync_to_cloud(self, local_file_path, metadata=None):
+        """Sync audio file to cloud storage"""
+        cloud_config = self.config.get('cloud_sync', {})
+        
+        if not cloud_config.get('enabled', False):
+            return None
+        
+        provider = cloud_config.get('provider', 'icloud')
+        
+        if provider == 'icloud':
+            return self.sync_to_icloud(local_file_path, metadata)
+        else:
+            print(f"⚠️  Cloud provider '{provider}' not yet implemented")
+            return None
+    
+    def sync_to_icloud(self, local_file_path, metadata=None):
+        """Sync audio file to iCloud Drive"""
+        try:
+            local_path = Path(local_file_path)
+            cloud_path = ICLOUD_DIR / local_path.name
+            
+            print(f"☁️ Syncing to iCloud Drive...")
+            print(f"   Local: {local_path}")
+            print(f"   Cloud: {cloud_path}")
+            
+            # Copy file to iCloud Drive folder
+            import shutil
+            shutil.copy2(local_path, cloud_path)
+            
+            # Create metadata file if requested
+            if metadata and self.config['cloud_sync'].get('sync_metadata', True):
+                metadata_file = cloud_path.with_suffix('.json')
+                with open(metadata_file, 'w') as f:
+                    json.dump(metadata, f, indent=2)
+            
+            print(f"✅ Synced to iCloud Drive")
+            print(f"📱 Access on iPhone: Files → iCloud Drive → ArticleAudio")
+            
+            return str(cloud_path)
+            
+        except Exception as e:
+            print(f"⚠️  iCloud sync failed: {e}")
+            return None
+    
+    def get_cloud_status(self):
+        """Get cloud sync status and information"""
+        cloud_config = self.config.get('cloud_sync', {})
+        
+        if not cloud_config.get('enabled', False):
+            return {"enabled": False, "message": "Cloud sync disabled"}
+        
+        provider = cloud_config.get('provider', 'icloud')
+        
+        if provider == 'icloud':
+            icloud_available = ICLOUD_DIR.parent.exists()
+            icloud_writable = ICLOUD_DIR.exists() or ICLOUD_DIR.parent.is_dir()
+            
+            return {
+                "enabled": True,
+                "provider": "icloud",
+                "available": icloud_available,
+                "writable": icloud_writable,
+                "path": str(ICLOUD_DIR),
+                "message": "iCloud Drive sync ready" if icloud_available else "iCloud Drive not available"
+            }
+        
+        return {"enabled": True, "provider": provider, "message": f"{provider} not implemented yet"}
+    
+    def generate_filename(self, article, voice, speed, save_to_storage):
+        """Generate output filename"""
+        if not save_to_storage:
+            return f"/tmp/article2audio_{int(time.time())}.mp3"
+        
+        # Clean title for filename
+        clean_title = re.sub(r'[^\w\s-]', '', article['title'])[:40]
+        clean_title = re.sub(r'\s+', '_', clean_title)
+        
+        timestamp = time.strftime('%Y%m%d_%H%M%S')
+        filename = f"{timestamp}_{clean_title}_{voice}.mp3"
+        
+        return str(AUDIO_DIR / filename)
+    
+    async def convert_to_audio(self, article, voice='christopher', speed='fast', save_to_storage=False):
+        """Convert article to audio using edge-tts"""
+        print(f"\n🎤 Converting to audio...")
+        
+        voice_id = self.config['voices'].get(voice, voice)
+        speed_setting = self.config['speeds'].get(speed, speed)
+        
+        print(f"   Voice: {voice} ({voice_id})")
+        print(f"   Speed: {speed} ({speed_setting})")
+        print(f"   Storage: {'Saved to library' if save_to_storage else 'Temporary file'}")
+        
+        try:
+            import edge_tts
+            
+            output_file = self.generate_filename(article, voice, speed, save_to_storage)
+            
+            communicate = edge_tts.Communicate(article['content'], voice_id, rate=speed_setting)
+            await communicate.save(output_file)
+            
+            file_size = os.path.getsize(output_file) / 1024 / 1024  # MB
+            
+            print(f"✅ Audio generated successfully!")
+            print(f"   File: {output_file}")
+            print(f"   Size: {file_size:.1f} MB")
+            
+            # Sync to cloud if enabled and saved to storage
+            if save_to_storage:
+                metadata = {
+                    "title": article['title'],
+                    "url": article['url'],
+                    "voice": voice,
+                    "speed": speed,
+                    "created": time.strftime('%Y-%m-%d %H:%M:%S'),
+                    "word_count": article.get('word_count', 0),
+                    "file_size_mb": file_size
+                }
+                cloud_path = self.sync_to_cloud(output_file, metadata)
+                if cloud_path:
+                    print(f"📱 Available on iPhone via iCloud Drive")
+            
+            return output_file
+            
+        except ImportError:
+            raise Exception("edge-tts not installed. Run: pip install edge-tts")
+        except Exception as e:
+            raise Exception(f"Audio generation failed: {e}")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="🎧 Enhanced Article-to-Audio Converter (v2.0)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Enhanced with improved website support based on testing!
+
+Examples:
+  article2audio-enhanced "https://www.bbc.com/news/article-url"
+  article2audio-enhanced "https://arstechnica.com/article" --voice guy --save
+  article2audio-enhanced "https://dev.to/post" --voice christopher --play
+        """
+    )
+    
+    parser.add_argument('url', nargs='?', help='Article URL to convert')
+    parser.add_argument('-v', '--voice', help='Voice to use (default: christopher)')
+    parser.add_argument('-s', '--speed', help='Speaking speed (default: fast)')
+    parser.add_argument('--save', action='store_true', help='Save to audio library')
+    parser.add_argument('--play', action='store_true', help='Play audio after generation')
+    parser.add_argument('--cookies', help='Authentication cookies (format: "name1=value1; name2=value2")')
+    parser.add_argument('--list-voices', action='store_true', help='List available voices')
+    parser.add_argument('--list-speeds', action='store_true', help='List available speeds')
+    
+    # Voice shuffle options
+    parser.add_argument('--setup-shuffle', action='store_true', help='Setup voice shuffle preferences')
+    parser.add_argument('--shuffle-voices', nargs='*', help='Favorite voices for shuffle (space-separated)')
+    parser.add_argument('--shuffle-algorithm', choices=['sequential', 'random', 'smart'], help='Shuffle algorithm')
+    parser.add_argument('--enable-shuffle', action='store_true', help='Enable voice shuffle')
+    parser.add_argument('--disable-shuffle', action='store_true', help='Disable voice shuffle')
+    
+    # Cloud sync options
+    parser.add_argument('--setup-cloud', action='store_true', help='Setup cloud sync preferences')
+    parser.add_argument('--enable-cloud', action='store_true', help='Enable cloud sync')
+    parser.add_argument('--disable-cloud', action='store_true', help='Disable cloud sync')
+    parser.add_argument('--cloud-status', action='store_true', help='Show cloud sync status')
+    
+    args = parser.parse_args()
+    
+    try:
+        converter = ArticleToAudioEnhanced(cookies=args.cookies)
+        
+        if args.list_voices:
+            converter.list_voices()
+            return
+        
+        if args.list_speeds:
+            converter.list_speeds()
+            return
+        
+        # Handle voice shuffle configuration
+        if args.setup_shuffle:
+            print("🎭 Voice Shuffle Setup")
+            print("=" * 30)
+            
+            # Interactive setup
+            favorites = input("Enter favorite voices (comma-separated, or press Enter for defaults): ").strip()
+            if favorites:
+                favorites = [v.strip() for v in favorites.split(',') if v.strip()]
+            else:
+                favorites = ['christopher', 'guy', 'eric']
+            
+            algorithm = input("Choose algorithm (sequential/random/smart) [sequential]: ").strip()
+            if not algorithm:
+                algorithm = 'sequential'
+            
+            converter.setup_voice_shuffle(favorites, algorithm, True)
+            return
+        
+        # Quick shuffle commands
+        if args.enable_shuffle:
+            converter.config['voice_shuffle']['enabled'] = True
+            converter.save_config()
+            print("✅ Voice shuffle enabled")
+            return
+        
+        if args.disable_shuffle:
+            converter.config['voice_shuffle']['enabled'] = False
+            converter.save_config()
+            print("❌ Voice shuffle disabled")
+            return
+        
+        # Update shuffle settings if provided
+        if args.shuffle_voices or args.shuffle_algorithm:
+            if args.shuffle_voices:
+                converter.config['voice_shuffle']['favorites'] = args.shuffle_voices
+            if args.shuffle_algorithm:
+                converter.config['voice_shuffle']['algorithm'] = args.shuffle_algorithm
+            converter.save_config()
+            print(f"🎭 Voice shuffle updated: {converter.config['voice_shuffle']}")
+            return
+        
+        # Handle cloud sync configuration
+        if args.setup_cloud:
+            print("☁️ Cloud Sync Setup")
+            print("=" * 30)
+            
+            # Show available providers
+            print("Available providers:")
+            print("1. icloud - iCloud Drive (recommended for iPhone users)")
+            print("2. gdrive - Google Drive (coming soon)")
+            print("3. dropbox - Dropbox (coming soon)")
+            
+            provider = input("Choose provider (icloud/gdrive/dropbox) [icloud]: ").strip()
+            if not provider:
+                provider = 'icloud'
+            
+            if provider == 'icloud':
+                converter.setup_cloud_sync('icloud', True)
+            else:
+                print(f"⚠️  Provider '{provider}' not yet implemented. Using iCloud for now.")
+                converter.setup_cloud_sync('icloud', True)
+            return
+        
+        if args.cloud_status:
+            status = converter.get_cloud_status()
+            print("☁️ Cloud Sync Status")
+            print("=" * 30)
+            print(f"Enabled: {status['enabled']}")
+            if status['enabled']:
+                print(f"Provider: {status['provider']}")
+                print(f"Status: {status['message']}")
+                if 'path' in status:
+                    print(f"Path: {status['path']}")
+            return
+        
+        if args.enable_cloud:
+            converter.setup_cloud_sync('icloud', True)
+            return
+        
+        if args.disable_cloud:
+            converter.config['cloud_sync']['enabled'] = False
+            converter.save_config()
+            print("❌ Cloud sync disabled")
+            return
+        
+        if not args.url:
+            parser.print_help()
+            return
+        
+        # Validate inputs
+        parsed_url = urlparse(args.url)
+        if not parsed_url.scheme or not parsed_url.netloc:
+            print("❌ Invalid URL. Please provide a complete URL")
+            return
+        
+        voice = args.voice or converter.config['defaults']['voice']
+        
+        # Use voice shuffle if enabled and no specific voice requested
+        # Only applies to automated conversions, not manual CLI usage
+        if not args.voice and hasattr(converter, '_auto_conversion'):
+            shuffled_voice = converter.get_shuffled_voice()
+            if shuffled_voice:
+                voice = shuffled_voice
+                print(f"🎭 Voice shuffle selected: {voice}")
+        elif not args.voice:
+            # Manual CLI usage - use default voice consistently
+            voice = converter.config['defaults']['voice']
+        
+        speed = args.speed or converter.config['defaults']['speed']
+        save_to_storage = args.save or converter.config['defaults']['save_to_storage']
+        
+        if voice not in converter.config['voices']:
+            print(f"❌ Unknown voice '{voice}'. Use --list-voices to see options.")
+            return
+        
+        if speed not in converter.config['speeds']:
+            print(f"❌ Unknown speed '{speed}'. Use --list-speeds to see options.")
+            return
+        
+        async def process():
+            print(f"🚀 Enhanced Article-to-Audio Conversion")
+            print("=" * 60)
+            
+            # Extract and convert
+            article = converter.extractor.extract_article(args.url)
+            audio_file = await converter.convert_to_audio(article, voice, speed, save_to_storage)
+            
+            # Play if requested
+            if args.play:
+                print(f"\n🔊 Playing audio...")
+                import subprocess
+                subprocess.run(['afplay', audio_file])
+            else:
+                print(f"\n🎧 To play: afplay '{audio_file}'")
+            
+            print(f"\n✅ Enhanced conversion complete!")
+            if save_to_storage:
+                print(f"📚 Saved to audio library")
+            else:
+                print(f"⏱️  Temporary file")
+        
+        asyncio.run(process())
+        
+    except KeyboardInterrupt:
+        print("\n❌ Conversion cancelled")
+        sys.exit(1)
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
