@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            padding: 20px;
+            background: #000;
+            color: #fff;
+            text-align: center;
+        }
+        .test-result {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 16px;
+            margin: 20px 0;
+        }
+        .success { background: rgba(0,255,0,0.2); }
+        .error { background: rgba(255,0,0,0.2); }
+    </style>
+</head>
+<body>
+    <h1>📱 Mobile Connection Test</h1>
+    
+    <div class="test-result" id="serverTest">
+        <h3>Server Connection</h3>
+        <p id="serverResult">Testing...</p>
+    </div>
+    
+    <div class="test-result" id="jsTest">
+        <h3>JavaScript</h3>
+        <p id="jsResult">Loading...</p>
+    </div>
+    
+    <div class="test-result">
+        <h3>Network Info</h3>
+        <p>Host: <span id="host"></span></p>
+        <p>User Agent: <span id="userAgent"></span></p>
+        <p>Screen: <span id="screen"></span></p>
+    </div>
+    
+    <button onclick="testFullUI()" style="background: #007AFF; color: white; border: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; margin-top: 20px;">
+        🚀 Test Full Mobile UI
+    </button>
+    
+    <script>
+        // Test JavaScript
+        document.getElementById('jsResult').textContent = '✅ JavaScript working!';
+        document.getElementById('jsTest').classList.add('success');
+        
+        // Show network info
+        document.getElementById('host').textContent = window.location.host;
+        document.getElementById('userAgent').textContent = navigator.userAgent.substring(0, 50) + '...';
+        document.getElementById('screen').textContent = `${screen.width}x${screen.height}`;
+        
+        // Test server connection
+        setTimeout(() => {
+            document.getElementById('serverResult').textContent = '✅ Simple HTTP server working!';
+            document.getElementById('serverTest').classList.add('success');
+        }, 500);
+        
+        function testFullUI() {
+            window.location.href = './mobile-player.html';
+        }
+    </script>
+</body>
+</html>

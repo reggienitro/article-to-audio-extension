@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article Audio - Mobile Access</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            text-align: center;
+            max-width: 400px;
+        }
+        h1 { margin-bottom: 30px; }
+        .link-button {
+            display: block;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 12px;
+            font-size: 18px;
+            transition: all 0.3s;
+        }
+        .link-button:active {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(0.95);
+        }
+        .url-display {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 14px;
+            word-break: break-all;
+        }
+        .warning {
+            background: rgba(255, 159, 10, 0.2);
+            border: 1px solid rgba(255, 159, 10, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Article Audio Mobile</h1>
+        
+        <div class="warning">
+            ⚠️ <strong>Important:</strong> Use HTTP not HTTPS
+        </div>
+        
+        <a href="chrome-mobile-demo.html" class="link-button">
+            🌐 Chrome Mobile Demo
+        </a>
+        
+        <a href="mobile-player.html" class="link-button">
+            🎧 Mobile Player
+        </a>
+        
+        <a href="test-mobile.html" class="link-button">
+            🧪 Connection Test
+        </a>
+        
+        <div style="margin-top: 30px; opacity: 0.8;">
+            <p>Current server:</p>
+            <div class="url-display" id="currentUrl"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Show current URL
+        document.getElementById('currentUrl').textContent = window.location.href;
+        
+        // Log for debugging
+        console.log('Protocol:', window.location.protocol);
+        console.log('Host:', window.location.host);
+        
+        // If accessed via HTTPS, show warning
+        if (window.location.protocol === 'https:') {
+            alert('⚠️ Please use HTTP instead of HTTPS!\n\nChange the URL to start with http://');
+        }
+    </script>
+</body>
+</html>

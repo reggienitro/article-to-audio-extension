@@ -40,8 +40,16 @@ Thumbs.db
 
 # API Keys and Secrets
 .env
+.env.local
 *.key
 config/secrets.json
+
+# SSL certificates
+*.crt
+*.pem
+
+# Output files
+output/
 
 # Audio files (too large for git)
 audio/

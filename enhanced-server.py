@@ -12,6 +12,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from threading import Thread
 import tempfile
+import pathlib
 
 class EnhancedArticleToAudioHandler(BaseHTTPRequestHandler):
     # Rate limiting storage
@@ -28,6 +29,26 @@ class EnhancedArticleToAudioHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Handle GET requests"""
         parsed_path = urlparse(self.path)
+        
+        # Serve mobile player
+        if parsed_path.path == '/mobile' or parsed_path.path == '/mobile-player':
+            self.serve_mobile_player()
+            return
+            
+        # Serve iPhone manager
+        if parsed_path.path == '/iphone-manager' or parsed_path.path == '/iphone':
+            self.serve_iphone_manager()
+            return
+            
+        # API endpoint for audio library
+        if parsed_path.path == '/api/library':
+            self.serve_audio_library()
+            return
+            
+        # Serve audio files
+        if parsed_path.path.startswith('/audio/'):
+            self.serve_audio_file(parsed_path.path)
+            return
         
         if parsed_path.path == '/status':
             self.send_json_response({'status': 'running', 'message': 'Enhanced Article to Audio server is running'})
@@ -88,8 +109,31 @@ class EnhancedArticleToAudioHandler(BaseHTTPRequestHandler):
                 result = self.run_conversion(processed_url, voice, speed, save_to_storage, cookies)
                 self.send_json_response(result)
                 
+            except json.JSONDecodeError:
+                self.send_json_response({
+                    'error': 'Invalid JSON in request body',
+                    'error_type': 'invalid_json',
+                    'user_message': 'The request format is invalid. Please try again.',
+                    'suggestions': ['Check if the URL is correctly formatted', 'Try refreshing the page']
+                }, 400)
+            except KeyError as e:
+                self.send_json_response({
+                    'error': f'Missing required field: {e}',
+                    'error_type': 'missing_field',
+                    'user_message': 'Required information is missing from the request.',
+                    'suggestions': ['Make sure you\'re on a valid article page', 'Try refreshing the page']
+                }, 400)
             except Exception as e:
-                self.send_json_response({'error': str(e)}, 500)
+                error_msg = str(e)
+                error_type, user_message, suggestions = self.categorize_error(error_msg)
+                
+                self.send_json_response({
+                    'error': error_msg,
+                    'error_type': error_type,
+                    'user_message': user_message,
+                    'suggestions': suggestions,
+                    'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+                }, 500)
         else:
             self.send_json_response({'error': 'Not found'}, 404)
 
@@ -100,6 +144,58 @@ class EnhancedArticleToAudioHandler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         self.wfile.write(json.dumps(data).encode('utf-8'))
+    
+    def categorize_error(self, error_msg):
+        """Categorize errors and provide user-friendly messages"""
+        error_msg_lower = error_msg.lower()
+        
+        # Network/connection errors
+        if any(term in error_msg_lower for term in ['connection', 'timeout', 'network', 'dns']):
+            return ('network_error', 
+                   'Unable to connect to the website. Please check your internet connection.',
+                   ['Check your internet connection', 'Try again in a few moments', 'The website might be temporarily down'])
+        
+        # Paywall errors
+        elif any(term in error_msg_lower for term in ['paywall', 'subscription', 'premium', 'login']):
+            return ('paywall_error',
+                   'This article requires a subscription or login to access.',
+                   ['Try using an archive link (archive.today, web.archive.org)', 'Check if you have a subscription', 'Look for a free version of the article'])
+        
+        # Content errors
+        elif any(term in error_msg_lower for term in ['too short', 'no content', 'content found']):
+            return ('content_error',
+                   'Unable to extract readable content from this page.',
+                   ['Make sure this is an article page, not a homepage', 'Try a different article', 'The page might be loading content dynamically'])
+        
+        # Rate limiting
+        elif any(term in error_msg_lower for term in ['rate limit', 'too many requests', '429']):
+            return ('rate_limit_error',
+                   'Too many requests. Please wait a moment before trying again.',
+                   ['Wait 30 seconds and try again', 'The website is limiting requests'])
+        
+        # Access denied/blocked
+        elif any(term in error_msg_lower for term in ['access denied', 'forbidden', '403', 'blocked']):
+            return ('access_error',
+                   'Access to this website is currently blocked or restricted.',
+                   ['The website might be blocking automated requests', 'Try a different article', 'Check if the URL is correct'])
+        
+        # Article not found
+        elif any(term in error_msg_lower for term in ['not found', '404', 'does not exist']):
+            return ('not_found_error',
+                   'The article could not be found. The link might be broken.',
+                   ['Check if the URL is correct', 'The article might have been moved or deleted', 'Try searching for the article on the website'])
+        
+        # Voice/TTS errors
+        elif any(term in error_msg_lower for term in ['voice', 'tts', 'audio', 'edge-tts']):
+            return ('audio_error',
+                   'There was a problem generating the audio.',
+                   ['Try a different voice', 'Check your internet connection', 'The text-to-speech service might be temporarily unavailable'])
+        
+        # Unknown error
+        else:
+            return ('unknown_error',
+                   'An unexpected error occurred. Please try again.',
+                   ['Try refreshing the page', 'Check if the URL is a valid article', 'The issue might be temporary'])
 
     def process_url_with_archives(self, url):
         """Process URL with archive site detection and rate limiting"""
@@ -396,10 +492,203 @@ class EnhancedArticleToAudioHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         """Custom logging to be less verbose"""
         print(f"[{self.address_string()}] {format % args}")
+    
+    def serve_mobile_player(self):
+        """Serve the mobile audio player interface"""
+        try:
+            mobile_player_path = os.path.join(os.path.dirname(__file__), 'mobile-player.html')
+            
+            if os.path.exists(mobile_player_path):
+                with open(mobile_player_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(content.encode('utf-8'))
+            else:
+                self.send_json_response({'error': 'Mobile player not found'}, 404)
+        except Exception as e:
+            self.send_json_response({'error': str(e)}, 500)
+    
+    def serve_iphone_manager(self):
+        """Serve the iPhone manager interface"""
+        try:
+            iphone_manager_path = os.path.join(os.path.dirname(__file__), 'iphone-manager.html')
+            
+            if os.path.exists(iphone_manager_path):
+                with open(iphone_manager_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(content.encode('utf-8'))
+            else:
+                self.send_json_response({'error': 'iPhone manager not found'}, 404)
+        except Exception as e:
+            self.send_json_response({'error': str(e)}, 500)
+    
+    def serve_audio_library(self):
+        """Serve the audio library as JSON for the mobile player"""
+        try:
+            library = self.get_enhanced_audio_library()
+            self.send_json_response(library)
+        except Exception as e:
+            self.send_json_response({'error': str(e)}, 500)
+    
+    def serve_audio_file(self, path):
+        """Serve audio files from the library"""
+        try:
+            # Extract filename from path (/audio/filename.mp3)
+            filename = path.replace('/audio/', '')
+            
+            # Look for file in both local and iCloud locations
+            local_audio_dir = pathlib.Path.home() / "model-finetuning-project" / "data" / "audio"
+            icloud_audio_dir = pathlib.Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs" / "ArticleAudio"
+            
+            audio_file = None
+            for audio_dir in [local_audio_dir, icloud_audio_dir]:
+                potential_file = audio_dir / filename
+                if potential_file.exists():
+                    audio_file = potential_file
+                    break
+            
+            if not audio_file:
+                self.send_json_response({'error': 'Audio file not found'}, 404)
+                return
+            
+            # Serve the audio file
+            self.send_response(200)
+            self.send_header('Content-Type', 'audio/mpeg')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(audio_file.stat().st_size))
+            self.end_headers()
+            
+            with open(audio_file, 'rb') as f:
+                self.wfile.write(f.read())
+                
+        except Exception as e:
+            self.send_json_response({'error': str(e)}, 500)
+    
+    def get_enhanced_audio_library(self):
+        """Get enhanced audio library with metadata for mobile player"""
+        try:
+            import glob
+            import datetime
+            
+            # Check both local and iCloud directories
+            local_audio_dir = pathlib.Path.home() / "model-finetuning-project" / "data" / "audio"
+            icloud_audio_dir = pathlib.Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs" / "ArticleAudio"
+            
+            articles = []
+            
+            for audio_dir in [local_audio_dir, icloud_audio_dir]:
+                if not audio_dir.exists():
+                    continue
+                    
+                audio_files = list(audio_dir.glob("*.mp3"))
+                
+                for audio_file in audio_files:
+                    try:
+                        # Parse filename for metadata
+                        filename = audio_file.name
+                        
+                        # Extract timestamp and title from filename pattern
+                        # Format: YYYYMMDD_HHMMSS_Title_voice.mp3
+                        parts = filename.replace('.mp3', '').split('_')
+                        if len(parts) >= 3:
+                            date_str = parts[0]
+                            time_str = parts[1]
+                            title_parts = parts[2:-1]  # Everything except date, time, and voice
+                            voice = parts[-1]
+                            
+                            # Format title
+                            title = ' '.join(title_parts).replace('_', ' ')
+                            
+                            # Parse date
+                            try:
+                                date_obj = datetime.datetime.strptime(f"{date_str}_{time_str}", "%Y%m%d_%H%M%S")
+                                formatted_date = date_obj.strftime("%Y-%m-%d")
+                                formatted_time = date_obj.strftime("%H:%M")
+                            except:
+                                formatted_date = date_str
+                                formatted_time = time_str
+                        else:
+                            title = filename.replace('.mp3', '').replace('_', ' ')
+                            formatted_date = "Unknown"
+                            formatted_time = "Unknown"
+                            voice = "christopher"
+                        
+                        # Get file size and duration estimate
+                        file_size = audio_file.stat().st_size
+                        size_mb = round(file_size / (1024 * 1024), 1)
+                        
+                        # Estimate duration (rough: 1MB ≈ 1 minute for speech)
+                        estimated_duration_min = max(1, round(size_mb))
+                        duration_str = f"{estimated_duration_min}:00" if estimated_duration_min < 60 else f"{estimated_duration_min//60}:{estimated_duration_min%60:02d}:00"
+                        
+                        # Determine source based on title patterns
+                        source = "Unknown"
+                        if "nytimes" in filename.lower() or "new york times" in title.lower():
+                            source = "The New York Times"
+                        elif "npr" in filename.lower():
+                            source = "NPR"
+                        elif "washington" in title.lower() and "post" in title.lower():
+                            source = "Washington Post"
+                        elif "bbc" in filename.lower():
+                            source = "BBC"
+                        
+                        article = {
+                            'id': filename.replace('.mp3', ''),
+                            'title': title[:80] + ('...' if len(title) > 80 else ''),
+                            'source': source,
+                            'duration': duration_str,
+                            'file': f"/audio/{filename}",
+                            'date': formatted_date,
+                            'time': formatted_time,
+                            'voice': voice.title(),
+                            'size': f"{size_mb} MB",
+                            'location': 'iCloud' if 'CloudDocs' in str(audio_dir) else 'Local'
+                        }
+                        
+                        articles.append(article)
+                        
+                    except Exception as e:
+                        print(f"Error processing {audio_file}: {e}")
+                        continue
+            
+            # Sort by date/time (newest first) and remove duplicates
+            unique_articles = {}
+            for article in articles:
+                # Use title as key to deduplicate
+                key = article['title']
+                if key not in unique_articles or article['location'] == 'iCloud':
+                    unique_articles[key] = article
+            
+            sorted_articles = sorted(unique_articles.values(), 
+                                   key=lambda x: f"{x['date']}_{x['time']}", 
+                                   reverse=True)
+            
+            return {
+                'success': True,
+                'articles': sorted_articles,
+                'total': len(sorted_articles),
+                'message': f'Found {len(sorted_articles)} articles'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'articles': []
+            }
 
 def run_enhanced_server(port=8888):
     """Run the enhanced HTTP server"""
-    server_address = ('localhost', port)
+    server_address = ('0.0.0.0', port)  # Bind to all interfaces for iPhone access
     httpd = HTTPServer(server_address, EnhancedArticleToAudioHandler)
     
     print(f"🎧 Enhanced Article to Audio Server starting on http://localhost:{port}")

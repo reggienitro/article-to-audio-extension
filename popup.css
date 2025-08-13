@@ -297,6 +297,93 @@ select:focus {
   background: rgba(74, 144, 226, 0.1);
 }
 
+/* Error Suggestions */
+.error-suggestions {
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-radius: 8px;
+  margin: 12px 20px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.suggestions-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fed7d7;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  font-weight: 500;
+  color: #c53030;
+  transition: background-color 0.2s;
+}
+
+.suggestions-title:hover {
+  background: #feb2b2;
+}
+
+.suggestions-title.collapsed::after {
+  content: ' ▼';
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.suggestions-title:not(.collapsed)::after {
+  content: ' ▲';
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.error-icon {
+  font-size: 16px;
+}
+
+.suggestions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.suggestion-item {
+  padding: 10px 16px;
+  border-bottom: 1px solid #fed7d7;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #2d3748;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover {
+  background: #fef5e7;
+}
+
+.suggestion-link {
+  color: #3182ce;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.suggestion-link:hover {
+  color: #2c5aa0;
+}
+
 /* Responsive adjustments */
 @media (max-width: 400px) {
   body {
@@ -309,5 +396,9 @@ select:focus {
   
   .header, .current-page, .settings, .actions {
     padding: 12px 16px;
+  }
+  
+  .error-suggestions {
+    margin: 12px 16px;
   }
 }

@@ -168,6 +168,111 @@ class ArticleToAudioPopup {
         statusIcon.textContent = 'ℹ️';
     }
   }
+
+  displayEnhancedError(error) {
+    // Check if this is an enhanced error with structured information
+    if (error.errorType && error.suggestions && error.suggestions.length > 0) {
+      // Display user-friendly error message
+      this.updateStatus(error.message, 'error');
+      
+      // Create suggestions dropdown/expandable section
+      this.displayErrorSuggestions(error.errorType, error.suggestions, error.originalError);
+    } else {
+      // Fallback to simple error display
+      this.updateStatus(`Conversion failed: ${error.message}`, 'error');
+    }
+  }
+
+  displayErrorSuggestions(errorType, suggestions, originalError) {
+    // Find or create error suggestions container
+    let suggestionsEl = document.getElementById('error-suggestions');
+    if (!suggestionsEl) {
+      suggestionsEl = document.createElement('div');
+      suggestionsEl.id = 'error-suggestions';
+      suggestionsEl.className = 'error-suggestions';
+      
+      // Insert after status element
+      const statusEl = document.getElementById('status');
+      statusEl.parentNode.insertBefore(suggestionsEl, statusEl.nextSibling);
+    }
+    
+    // Clear previous suggestions
+    suggestionsEl.innerHTML = '';
+    
+    // Create suggestions content
+    const suggestionsTitle = document.createElement('div');
+    suggestionsTitle.className = 'suggestions-title';
+    suggestionsTitle.innerHTML = `
+      <span class="error-icon">${this.getErrorTypeIcon(errorType)}</span>
+      <span>Try these solutions:</span>
+    `;
+    
+    const suggestionsList = document.createElement('ul');
+    suggestionsList.className = 'suggestions-list';
+    
+    suggestions.forEach(suggestion => {
+      const listItem = document.createElement('li');
+      listItem.className = 'suggestion-item';
+      
+      // Check if suggestion contains a URL and make it clickable
+      if (suggestion.includes('http')) {
+        const urlMatch = suggestion.match(/(https?:\/\/[^\s]+)/);
+        if (urlMatch) {
+          const url = urlMatch[1];
+          const beforeUrl = suggestion.substring(0, suggestion.indexOf(url));
+          const afterUrl = suggestion.substring(suggestion.indexOf(url) + url.length);
+          
+          listItem.innerHTML = `
+            ${beforeUrl}<a href="${url}" target="_blank" class="suggestion-link">${url}</a>${afterUrl}
+          `;
+        } else {
+          listItem.textContent = suggestion;
+        }
+      } else {
+        listItem.textContent = suggestion;
+      }
+      
+      suggestionsList.appendChild(listItem);
+    });
+    
+    // Add collapse/expand functionality
+    suggestionsTitle.addEventListener('click', () => {
+      suggestionsList.style.display = suggestionsList.style.display === 'none' ? 'block' : 'none';
+      suggestionsTitle.classList.toggle('collapsed');
+    });
+    
+    suggestionsEl.appendChild(suggestionsTitle);
+    suggestionsEl.appendChild(suggestionsList);
+    
+    // Auto-hide after 10 seconds unless user interacts
+    setTimeout(() => {
+      if (suggestionsEl && !suggestionsEl.matches(':hover')) {
+        suggestionsEl.style.display = 'none';
+      }
+    }, 10000);
+  }
+
+  getErrorTypeIcon(errorType) {
+    const iconMap = {
+      'network_error': '🌐',
+      'paywall_error': '💰',
+      'content_error': '📄',
+      'rate_limit_error': '⏱️',
+      'access_error': '🚫',
+      'not_found_error': '🔍',
+      'audio_error': '🎵',
+      'unknown_error': '❓'
+    };
+    
+    return iconMap[errorType] || '❌';
+  }
+
+  clearErrorSuggestions() {
+    const suggestionsEl = document.getElementById('error-suggestions');
+    if (suggestionsEl) {
+      suggestionsEl.style.display = 'none';
+    }
+  }
   
   showProgress(show = true, progress = 0, text = 'Processing...') {
     const progressEl = document.getElementById('progress');
@@ -192,7 +297,8 @@ class ArticleToAudioPopup {
     const convertBtn = document.getElementById('convert-btn');
     
     try {
-      // Disable button and show progress
+      // Clear any previous error suggestions and disable button
+      this.clearErrorSuggestions();
       convertBtn.disabled = true;
       convertBtn.innerHTML = '<span class="btn-icon">⏳</span>Converting...';
       this.showProgress(true, 10, 'Sending to article2audio CLI...');
@@ -229,7 +335,7 @@ class ArticleToAudioPopup {
       }
       
     } catch (error) {
-      this.updateStatus(`Conversion failed: ${error.message}`, 'error');
+      this.displayEnhancedError(error);
       console.error('Conversion error:', error);
     } finally {
       // Re-enable button and hide progress
@@ -279,7 +385,16 @@ class ArticleToAudioPopup {
           output: result.output
         };
       } else {
-        throw new Error(result.error || 'Unknown conversion error');
+        // Handle enhanced error response with structured error information
+        if (result.error_type && result.user_message) {
+          const error = new Error(result.user_message);
+          error.errorType = result.error_type;
+          error.suggestions = result.suggestions || [];
+          error.originalError = result.error;
+          throw error;
+        } else {
+          throw new Error(result.error || 'Unknown conversion error');
+        }
       }
       
     } catch (error) {
@@ -297,6 +412,7 @@ class ArticleToAudioPopup {
       return;
     }
     
+    this.clearErrorSuggestions();
     this.updateStatus('Testing article extraction...', 'info');
     
     try {
@@ -315,7 +431,16 @@ class ArticleToAudioPopup {
       if (result.success) {
         this.updateStatus(`✅ Article test passed: ${result.estimated_duration}`, 'success');
       } else {
-        this.updateStatus(`❌ Test failed: ${result.error}`, 'error');
+        // Handle enhanced error response for test failures too
+        if (result.error_type && result.user_message) {
+          const error = new Error(result.user_message);
+          error.errorType = result.error_type;
+          error.suggestions = result.suggestions || [];
+          error.originalError = result.error;
+          this.displayEnhancedError(error);
+        } else {
+          this.updateStatus(`❌ Test failed: ${result.error}`, 'error');
+        }
       }
       
     } catch (error) {
