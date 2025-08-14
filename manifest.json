@@ -14,7 +14,8 @@
 
   "host_permissions": [
     "http://localhost:*/*",
-    "https://localhost:*/*"
+    "https://localhost:*/*",
+    "https://article-to-audio-extension.onrender.com/*"
   ],
 
   "background": {

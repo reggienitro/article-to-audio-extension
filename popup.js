@@ -348,7 +348,7 @@ class ArticleToAudioPopup {
   }
   
   async callArticle2AudioCLI(url) {
-    const SERVER_URL = 'http://localhost:8888';
+    const SERVER_URL = 'https://article-to-audio-extension.onrender.com';
     
     try {
       // Check if server is running
@@ -416,7 +416,7 @@ class ArticleToAudioPopup {
     this.updateStatus('Testing article extraction...', 'info');
     
     try {
-      const SERVER_URL = 'http://localhost:8888';
+      const SERVER_URL = 'https://article-to-audio-extension.onrender.com';
       
       // Check if server is running first
       const statusResponse = await fetch(`${SERVER_URL}/status`);
