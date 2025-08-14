@@ -17,7 +17,7 @@ import base64
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 import uvicorn
 
 # Import dependencies
@@ -64,6 +64,13 @@ class ConversionRequest(BaseModel):
     storageMode: str = "ask"
     isFavorite: bool = False
     userId: Optional[str] = None
+    
+    @model_validator(mode='before')
+    @classmethod 
+    def validate_content_or_url(cls, values):
+        if not values.get('url') and not (values.get('title') and values.get('content')):
+            raise ValueError('Either URL or both title and content must be provided')
+        return values
 
 class ArticleResponse(BaseModel):
     id: str
