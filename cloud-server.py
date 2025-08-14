@@ -57,8 +57,8 @@ else:
 
 # Data models
 class ConversionRequest(BaseModel):
-    title: str
-    content: str
+    title: Optional[str] = None
+    content: Optional[str] = None
     url: Optional[str] = None
     voice: str = "en-US-BrianNeural"
     storageMode: str = "ask"
@@ -90,6 +90,32 @@ async def health_check():
 async def convert_article(request: ConversionRequest):
     """Convert article to audio and store in cloud"""
     try:
+        # If URL is provided but no content, extract from URL
+        if request.url and not request.content:
+            try:
+                import requests
+                from bs4 import BeautifulSoup
+                from readability import Document
+                
+                headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                response = requests.get(request.url, headers=headers, timeout=10)
+                response.raise_for_status()
+                
+                # Use readability to extract main content
+                doc = Document(response.content)
+                request.title = doc.title() or "Web Article"
+                request.content = doc.summary()
+                
+                # Clean HTML tags
+                soup = BeautifulSoup(request.content, 'html.parser')
+                request.content = soup.get_text(separator=' ', strip=True)
+                
+                print(f"Extracted from URL: {request.title} ({len(request.content)} chars)")
+                
+            except Exception as e:
+                print(f"URL extraction failed: {e}")
+                raise HTTPException(status_code=400, detail=f"Failed to extract content from URL: {str(e)}")
+        
         print(f"Converting: {request.title} ({len(request.content)} chars)")
         
         # Generate unique filename

@@ -352,9 +352,9 @@ class ArticleToAudioPopup {
     
     try {
       // Check if server is running
-      const statusResponse = await fetch(`${SERVER_URL}/status`);
+      const statusResponse = await fetch(`${SERVER_URL}/health`);
       if (!statusResponse.ok) {
-        throw new Error('Local server is not running. Please start server.py first.');
+        throw new Error('Cloud server is not responding. Please try again later.');
       }
       
       // Get cookies for the domain if it's a subscription site
@@ -369,9 +369,8 @@ class ArticleToAudioPopup {
         body: JSON.stringify({
           url: url,
           voice: this.settings.voice,
-          speed: this.settings.speed,
-          save_to_storage: this.settings.saveAudio,
-          cookies: cookies
+          storageMode: this.settings.saveAudio ? "cloud" : "local",
+          isFavorite: false
         })
       });
       
@@ -419,9 +418,9 @@ class ArticleToAudioPopup {
       const SERVER_URL = 'https://article-to-audio-extension.onrender.com';
       
       // Check if server is running first
-      const statusResponse = await fetch(`${SERVER_URL}/status`);
+      const statusResponse = await fetch(`${SERVER_URL}/health`);
       if (!statusResponse.ok) {
-        throw new Error('Local server is not running. Please start server.py first.');
+        throw new Error('Cloud server is not responding. Please try again later.');
       }
       
       // Test article extraction via server
