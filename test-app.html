@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Article Audio - Test Version</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .test-banner {
+            background: rgba(255, 159, 10, 0.2);
+            border: 1px solid rgba(255, 159, 10, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #ff9f0a;
+        }
+
+        /* Auth Section */
+        .auth-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .auth-input {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-size: 16px;
+        }
+
+        .auth-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .auth-btn {
+            background: rgba(255, 255, 255, 0.25);
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .auth-btn:hover {
+            background: rgba(255, 255, 255, 0.35);
+        }
+
+        .auth-btn:active {
+            transform: scale(0.98);
+        }
+
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .upload-section.active {
+            display: block;
+        }
+
+        .upload-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .url-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+
+        .text-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            color: white;
+            font-size: 14px;
+            min-height: 150px;
+            resize: vertical;
+            margin-bottom: 12px;
+        }
+
+        .voice-settings {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .voice-select, .speed-select {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+        }
+
+        .voice-select option, .speed-select option {
+            background: #333;
+        }
+
+        .convert-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #30d158 0%, #28a745 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 14px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .convert-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(48, 209, 88, 0.3);
+        }
+
+        .convert-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Progress */
+        .progress-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .progress-section.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #30d158, #28a745);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            text-align: center;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        /* Audio Player */
+        .audio-player {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .audio-player.active {
+            display: block;
+        }
+
+        .player-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+
+        .player-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 16px;
+        }
+
+        .player-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .player-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .player-btn.play {
+            width: 56px;
+            height: 56px;
+            font-size: 20px;
+            background: rgba(48, 209, 88, 0.3);
+        }
+
+        /* Status Messages */
+        .status-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            transform: translateX(400px);
+            transition: transform 0.3s;
+            max-width: 300px;
+            z-index: 1000;
+        }
+
+        .status-message.show {
+            transform: translateX(0);
+        }
+
+        .status-message.success {
+            background: rgba(48, 209, 88, 0.9);
+        }
+
+        .status-message.error {
+            background: rgba(255, 59, 48, 0.9);
+        }
+
+        .article-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .article-info.active {
+            display: block;
+        }
+
+        .article-info h3 {
+            margin-bottom: 8px;
+        }
+
+        .article-info p {
+            font-size: 14px;
+            opacity: 0.8;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="status-message" id="statusMessage"></div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🎧 Article Audio</h1>
+            <p>Convert articles to audio instantly</p>
+        </div>
+
+        <div class="test-banner">
+            🧪 <strong>Test Mode</strong><br>
+            Full workflow simulation with mock authentication
+        </div>
+
+        <!-- Authentication Section -->
+        <div class="auth-section" id="authSection">
+            <div class="auth-form" id="authForm">
+                <input type="email" class="auth-input" id="emailInput" placeholder="test@example.com" value="test@example.com">
+                <input type="password" class="auth-input" id="passwordInput" placeholder="password123" value="password123">
+                <button class="auth-btn" id="signInBtn">🔐 Test Sign In</button>
+                <button class="auth-btn" id="signUpBtn">📝 Test Sign Up</button>
+            </div>
+            <div class="user-info" id="userInfo" style="display: none;">
+                <span id="userEmail">test@example.com</span>
+                <button class="auth-btn" id="signOutBtn">Sign Out</button>
+            </div>
+        </div>
+
+        <!-- Upload/Convert Section -->
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-tabs">
+                <button class="tab-btn active" data-tab="url">📰 Article URL</button>
+                <button class="tab-btn" data-tab="text">📝 Paste Text</button>
+            </div>
+
+            <div class="tab-content active" id="urlTab">
+                <input type="url" class="url-input" id="urlInput" placeholder="https://example.com/article" value="https://www.bbc.com/news/technology">
+            </div>
+
+            <div class="tab-content" id="textTab">
+                <input type="text" class="auth-input" id="titleInput" placeholder="Article title" value="Test Article">
+                <textarea class="text-input" id="textInput" placeholder="Paste your article text here...">This is a test article about artificial intelligence and machine learning. The field of AI has grown tremendously in recent years, with applications spanning from natural language processing to computer vision. Machine learning algorithms are now being used in everything from recommendation systems to autonomous vehicles.</textarea>
+            </div>
+
+            <div class="voice-settings">
+                <select class="voice-select" id="voiceSelect">
+                    <option value="en-US-BrianNeural">Brian (Male)</option>
+                    <option value="en-US-AriaNeural">Aria (Female)</option>
+                </select>
+                <select class="speed-select" id="speedSelect">
+                    <option value="1.0" selected>1.0x Speed</option>
+                    <option value="1.25">1.25x Speed</option>
+                </select>
+            </div>
+
+            <button class="convert-btn" id="convertBtn">
+                🎙️ Convert to Audio
+            </button>
+        </div>
+
+        <!-- Progress Section -->
+        <div class="progress-section" id="progressSection">
+            <h3>Converting Article...</h3>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">Extracting article content...</div>
+        </div>
+
+        <!-- Article Info -->
+        <div class="article-info" id="articleInfo">
+            <h3 id="articleTitle">Article Title</h3>
+            <p id="articleMeta">Word count: 0 | Duration: 0:00</p>
+        </div>
+
+        <!-- Audio Player -->
+        <div class="audio-player" id="audioPlayer">
+            <div class="player-title" id="playerTitle">Ready to play</div>
+            <div class="player-controls">
+                <button class="player-btn" id="rewindBtn">⏪</button>
+                <button class="player-btn play" id="playPauseBtn">▶️</button>
+                <button class="player-btn" id="forwardBtn">⏩</button>
+            </div>
+            <audio id="audioElement"></audio>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let conversionInProgress = false;
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            setupEventListeners();
+            showStatus('🧪 Test app loaded - ready for testing!', 'success');
+        });
+
+        function setupEventListeners() {
+            // Auth buttons
+            document.getElementById('signInBtn').addEventListener('click', testSignIn);
+            document.getElementById('signUpBtn').addEventListener('click', testSignUp);
+            document.getElementById('signOutBtn').addEventListener('click', testSignOut);
+
+            // Tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    switchTab(e.target.dataset.tab);
+                });
+            });
+
+            // Convert button
+            document.getElementById('convertBtn').addEventListener('click', testConvert);
+
+            // Audio controls
+            document.getElementById('playPauseBtn').addEventListener('click', testPlay);
+        }
+
+        function testSignIn() {
+            showStatus('🔐 Mock sign in successful!', 'success');
+            currentUser = { email: 'test@example.com', id: 'test-user-123' };
+            updateAuthUI(true);
+        }
+
+        function testSignUp() {
+            showStatus('📝 Mock sign up successful! (No email required)', 'success');
+            currentUser = { email: 'test@example.com', id: 'test-user-123' };
+            updateAuthUI(true);
+        }
+
+        function testSignOut() {
+            showStatus('👋 Signed out', 'success');
+            currentUser = null;
+            updateAuthUI(false);
+        }
+
+        function updateAuthUI(signedIn) {
+            const authForm = document.getElementById('authForm');
+            const userInfo = document.getElementById('userInfo');
+            const uploadSection = document.getElementById('uploadSection');
+
+            if (signedIn) {
+                authForm.style.display = 'none';
+                userInfo.style.display = 'flex';
+                uploadSection.classList.add('active');
+            } else {
+                authForm.style.display = 'flex';
+                userInfo.style.display = 'none';
+                uploadSection.classList.remove('active');
+                
+                // Hide other sections
+                document.getElementById('progressSection').classList.remove('active');
+                document.getElementById('articleInfo').classList.remove('active');
+                document.getElementById('audioPlayer').classList.remove('active');
+            }
+        }
+
+        function switchTab(tab) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tab);
+            });
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tab}Tab`).classList.add('active');
+        }
+
+        async function testConvert() {
+            if (!currentUser) {
+                showStatus('Please sign in first', 'error');
+                return;
+            }
+
+            if (conversionInProgress) {
+                showStatus('Conversion already in progress', 'error');
+                return;
+            }
+
+            conversionInProgress = true;
+
+            // Get content
+            const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+            let title, content;
+
+            if (activeTab === 'url') {
+                const url = document.getElementById('urlInput').value;
+                if (!url) {
+                    showStatus('Please enter a URL', 'error');
+                    conversionInProgress = false;
+                    return;
+                }
+                title = 'Article from ' + new URL(url).hostname;
+                content = 'Mock article content extracted from ' + url + '. This would normally contain the full article text extracted from the webpage.';
+            } else {
+                title = document.getElementById('titleInput').value || 'Untitled';
+                content = document.getElementById('textInput').value;
+            }
+
+            if (!content) {
+                showStatus('No content to convert', 'error');
+                conversionInProgress = false;
+                return;
+            }
+
+            // Show progress
+            document.getElementById('progressSection').classList.add('active');
+            
+            // Simulate conversion process
+            const steps = [
+                { text: 'Extracting article content...', progress: 20 },
+                { text: 'Processing text...', progress: 40 },
+                { text: 'Generating audio with TTS...', progress: 70 },
+                { text: 'Saving to cloud...', progress: 90 },
+                { text: 'Complete!', progress: 100 }
+            ];
+
+            for (let i = 0; i < steps.length; i++) {
+                await delay(800);
+                updateProgress(steps[i].progress, steps[i].text);
+            }
+
+            // Show article info
+            const wordCount = content.split(' ').length;
+            const duration = Math.ceil(wordCount / 200); // Assume 200 words per minute
+            
+            document.getElementById('articleTitle').textContent = title;
+            document.getElementById('articleMeta').textContent = `Word count: ${wordCount} | Duration: ${duration}:00`;
+            document.getElementById('articleInfo').classList.add('active');
+
+            // Show audio player
+            document.getElementById('playerTitle').textContent = title;
+            document.getElementById('audioPlayer').classList.add('active');
+
+            // Hide progress
+            document.getElementById('progressSection').classList.remove('active');
+
+            showStatus('✅ Conversion complete! Audio ready to play', 'success');
+            conversionInProgress = false;
+        }
+
+        function updateProgress(percentage, text) {
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = text;
+        }
+
+        function testPlay() {
+            const btn = document.getElementById('playPauseBtn');
+            if (btn.textContent === '▶️') {
+                btn.textContent = '⏸️';
+                showStatus('🎵 Playing audio (simulated)', 'success');
+                
+                // Simulate playing
+                setTimeout(() => {
+                    btn.textContent = '▶️';
+                    showStatus('🔇 Audio finished', 'success');
+                }, 3000);
+            } else {
+                btn.textContent = '▶️';
+                showStatus('⏸️ Audio paused', 'success');
+            }
+        }
+
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = message;
+            statusEl.className = `status-message show ${type}`;
+            
+            setTimeout(() => {
+                statusEl.classList.remove('show');
+            }, 3000);
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>

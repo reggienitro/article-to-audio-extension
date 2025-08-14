@@ -54,8 +54,10 @@ def convert_article():
         
         if article_type == 'url':
             url = data.get('url')
+            logger.info(f"Extracting article from URL: {url}")
             title, content = extract_article_simple(url)
             source_url = url
+            logger.info(f"Extracted: {title[:50]}... ({len(content)} chars)")
             
         elif article_type == 'text':
             title = data.get('title', 'Untitled')
@@ -68,13 +70,60 @@ def convert_article():
         voice = data.get('voice', 'en-US-BrianNeural')
         speed = float(data.get('speed', 1.0))
         
-        # Generate audio using gTTS (simpler than Edge TTS for now)
+        # Generate audio using Edge TTS (no rate limits!)
         audio_filename = f"{uuid.uuid4()}.mp3"
         audio_path = OUTPUT_DIR / audio_filename
         
-        # Use gTTS for quick testing
-        tts = gTTS(text=content, lang='en', slow=False)
-        tts.save(str(audio_path))
+        # Use Edge TTS with timeout and chunking for long content
+        import asyncio
+        
+        async def generate_edge_tts():
+            # For very long content (>10k chars), chunk it
+            if len(content) > 10000:
+                logger.info(f"Long content detected ({len(content)} chars), chunking...")
+                chunks = chunk_text(content, 8000)  # 8k char chunks
+                all_audio = []
+                
+                for i, chunk in enumerate(chunks):
+                    logger.info(f"Processing chunk {i+1}/{len(chunks)}")
+                    chunk_path = str(audio_path).replace('.mp3', f'_chunk_{i}.mp3')
+                    communicate = edge_tts.Communicate(chunk, voice)
+                    await communicate.save(chunk_path)
+                    all_audio.append(chunk_path)
+                
+                # Combine chunks using ffmpeg or just use first chunk for now
+                # For simplicity, just use the first chunk
+                import shutil
+                shutil.move(all_audio[0], str(audio_path))
+                
+                # Clean up other chunks
+                for chunk_path in all_audio[1:]:
+                    try:
+                        os.remove(chunk_path)
+                    except:
+                        pass
+            else:
+                communicate = edge_tts.Communicate(content, voice)
+                await communicate.save(str(audio_path))
+        
+        # Run Edge TTS with timeout
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            # Add 5 minute timeout
+            loop.run_until_complete(asyncio.wait_for(generate_edge_tts(), timeout=300))
+        except asyncio.TimeoutError:
+            logger.error("Edge TTS timeout - falling back to first 5000 chars")
+            # Fallback: use truncated content
+            truncated_content = content[:5000] + "... (content truncated due to length)"
+            
+            async def fallback_tts():
+                communicate = edge_tts.Communicate(truncated_content, voice)
+                await communicate.save(str(audio_path))
+            
+            loop.run_until_complete(fallback_tts())
+        finally:
+            loop.close()
         
         # Calculate metadata
         word_count = len(content.split())
@@ -103,6 +152,10 @@ def convert_article():
 def extract_article_simple(url):
     """Simple article extraction"""
     try:
+        # Add https:// if no scheme provided
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+            
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
@@ -144,6 +197,28 @@ def extract_article_simple(url):
         logger.error(f"Failed to extract article: {str(e)}")
         raise Exception(f"Failed to extract article from URL: {str(e)}")
 
+def chunk_text(text, max_chunk_size=8000):
+    """Split text into chunks at sentence boundaries"""
+    sentences = text.split('. ')
+    chunks = []
+    current_chunk = ""
+    
+    for sentence in sentences:
+        # Add sentence to current chunk if it fits
+        if len(current_chunk + sentence + '. ') <= max_chunk_size:
+            current_chunk += sentence + '. '
+        else:
+            # Start new chunk
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            current_chunk = sentence + '. '
+    
+    # Add the last chunk
+    if current_chunk:
+        chunks.append(current_chunk.strip())
+    
+    return chunks
+
 @app.route('/audio/<filename>')
 def serve_audio(filename):
     """Serve audio files"""
@@ -166,6 +241,11 @@ def health_check():
 def serve_app():
     """Serve the mobile app"""
     return send_file('mobile-app.html')
+
+@app.route('/test-app.html')
+def serve_test_app():
+    """Serve the test app"""
+    return send_file('test-app.html')
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))

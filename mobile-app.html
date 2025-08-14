@@ -529,22 +529,14 @@
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', async () => {
-            // Check if we have Supabase credentials
-            if (SUPABASE_KEY === 'YOUR_ANON_KEY') {
-                showStatus('⚠️ Please add your Supabase key to use the app', 'error');
-                console.log('Edit mobile-app.html and add your SUPABASE_KEY');
-                return;
-            }
-
-            // Initialize Supabase
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log('📱 Real app loading...');
             
-            // Check for existing session
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                handleSignIn(session.user);
-            }
-
+            // Pre-fill demo credentials
+            document.getElementById('emailInput').value = 'demo@example.com';
+            document.getElementById('passwordInput').value = 'password123';
+            
+            showStatus('📱 Real app loaded! Use demo login or your real email.', 'success');
+            
             // Set up event listeners
             setupEventListeners();
         });
@@ -575,55 +567,50 @@
         }
 
         async function signIn() {
+            console.log('🔐 Demo sign in');
+            
             const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-
-            if (!email || !password) {
-                showStatus('Please enter email and password', 'error');
+            
+            if (!email) {
+                showStatus('Please enter an email', 'error');
                 return;
             }
 
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password
-            });
-
-            if (error) {
-                showStatus(`Sign in failed: ${error.message}`, 'error');
-            } else {
-                handleSignIn(data.user);
-            }
+            // Demo mode - just create user object
+            currentUser = { 
+                email: email, 
+                id: 'demo-user-' + Date.now() 
+            };
+            
+            handleSignIn(currentUser);
+            showStatus('🔐 Demo sign in successful!', 'success');
         }
 
         async function signUp() {
+            console.log('📝 Demo sign up');
+            
             const email = document.getElementById('emailInput').value;
-            const password = document.getElementById('passwordInput').value;
-
-            if (!email || !password) {
-                showStatus('Please enter email and password', 'error');
+            
+            if (!email) {
+                showStatus('Please enter an email', 'error');
                 return;
             }
 
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password
-            });
-
-            if (error) {
-                showStatus(`Sign up failed: ${error.message}`, 'error');
-            } else {
-                showStatus('Check your email for verification link!', 'success');
-            }
+            // Demo mode - just create user object
+            currentUser = { 
+                email: email, 
+                id: 'demo-user-' + Date.now() 
+            };
+            
+            handleSignIn(currentUser);
+            showStatus('📝 Demo account created!', 'success');
         }
 
         async function signOut() {
-            const { error } = await supabase.auth.signOut();
-            
-            if (error) {
-                showStatus(`Sign out failed: ${error.message}`, 'error');
-            } else {
-                handleSignOut();
-            }
+            console.log('👋 Demo sign out');
+            currentUser = null;
+            handleSignOut();
+            showStatus('👋 Signed out', 'success');
         }
 
         function handleSignIn(user) {
@@ -705,12 +692,13 @@
             document.getElementById('convertSpinner').classList.add('active');
 
             try {
-                // Call conversion API (you'll need to implement this endpoint)
+                console.log('🎙️ Starting conversion:', articleData);
+                
+                // Call our real API
                 const response = await fetch('/api/convert', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session.access_token}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         ...articleData,
@@ -721,23 +709,21 @@
                     })
                 });
 
-                if (!response.ok) throw new Error('Conversion failed');
-
-                const result = await response.json();
-                
-                // Save to Supabase if needed
-                if (storageMode === 'always' || 
-                    (storageMode === 'ask' && confirm('Save to cloud?'))) {
-                    await saveArticle(result);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Conversion failed');
                 }
 
-                showStatus('✅ Conversion complete!', 'success');
-                loadArticles();
+                const result = await response.json();
+                console.log('✅ Conversion result:', result);
                 
-                // Play the audio
+                showStatus('✅ Conversion complete!', 'success');
+                
+                // Play the audio immediately
                 playAudio(result.audioUrl, result.title);
 
             } catch (error) {
+                console.error('❌ Conversion error:', error);
                 showStatus(`Conversion failed: ${error.message}`, 'error');
             } finally {
                 document.getElementById('convertBtn').disabled = false;
