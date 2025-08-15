@@ -233,8 +233,8 @@ async def save_article_to_db(request: ConversionRequest, audio_url: Optional[str
             "audio_url": audio_url,
             "word_count": len(request.content.split()) if request.content else 0,
             "estimated_read_time": max(1, len(request.content.split()) // 200) if request.content else 1,
-            "source_domain": self.extract_domain(request.url) if request.url else None,
-            "content_hash": self.generate_content_hash(request.content) if request.content else None
+            "source_domain": extract_domain(request.url) if request.url else None,
+            "content_hash": generate_content_hash(request.content) if request.content else None
         }
         
         response = supabase.table('articles').insert(article_data).execute()
