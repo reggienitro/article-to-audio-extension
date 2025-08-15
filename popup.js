@@ -383,20 +383,22 @@ class ArticleToAudioPopup {
           title: articleData.title,
           content: articleData.content,
           url: url,
-          voice: this.settings.voice,
+          voice: this.mapVoiceToEdgeTTS(this.settings.voice),
           storageMode: this.settings.saveAudio ? "cloud" : "local",
           isFavorite: false
         })
       });
       
+      console.log('Server response status:', response.status);
       const result = await response.json();
+      console.log('Server response data:', result);
       
       if (result.success) {
         return {
           success: true,
-          filename: result.audio_file || 'Unknown filename',
+          filename: result.filename || result.audio_file || 'Unknown filename',
           duration: 'Conversion completed',
-          output: result.output
+          output: result.output || result.message
         };
       } else {
         // Handle enhanced error response with structured error information
@@ -407,7 +409,8 @@ class ArticleToAudioPopup {
           error.originalError = result.error;
           throw error;
         } else {
-          throw new Error(result.error || 'Unknown conversion error');
+          console.error('Server error details:', result);
+          throw new Error(result.error || result.detail || 'Unknown conversion error');
         }
       }
       
@@ -546,6 +549,21 @@ class ArticleToAudioPopup {
       console.warn('Failed to get cookies:', error);
       return null;
     }
+  }
+
+  mapVoiceToEdgeTTS(voice) {
+    // Map simple voice names to Edge TTS voice names
+    const voiceMap = {
+      'christopher': 'en-US-ChristopherNeural',
+      'guy': 'en-US-GuyNeural', 
+      'eric': 'en-US-EricNeural',
+      'brian': 'en-US-BrianNeural',
+      'davis': 'en-US-DavisNeural',
+      'jason': 'en-US-JasonNeural',
+      'tony': 'en-US-TonyNeural'
+    };
+    
+    return voiceMap[voice] || 'en-US-BrianNeural'; // Default fallback
   }
 
   openHelp() {

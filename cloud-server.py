@@ -225,17 +225,17 @@ async def upload_to_supabase_storage(file_path: str, filename: str) -> Optional[
 async def save_article_to_db(request: ConversionRequest, audio_url: Optional[str]) -> Optional[str]:
     """Save article metadata to Supabase database"""
     try:
-        # Simple article data matching existing schema
+        # Article data matching your existing schema
         article_data = {
+            "url": request.url,
             "title": request.title,
+            "extracted_text": request.content,
             "audio_url": audio_url,
-            "is_favorite": request.isFavorite,
-            "word_count": len(request.content.split()),
-            "estimated_read_time": max(1, len(request.content.split()) // 200)
+            "word_count": len(request.content.split()) if request.content else 0,
+            "estimated_read_time": max(1, len(request.content.split()) // 200) if request.content else 1,
+            "source_domain": self.extract_domain(request.url) if request.url else None,
+            "content_hash": self.generate_content_hash(request.content) if request.content else None
         }
-        
-        if request.userId:
-            article_data["user_id"] = request.userId
         
         response = supabase.table('articles').insert(article_data).execute()
         
@@ -249,6 +249,23 @@ async def save_article_to_db(request: ConversionRequest, audio_url: Optional[str
             
     except Exception as e:
         print(f"Database save failed: {e}")
+        return None
+
+def extract_domain(url: str) -> Optional[str]:
+    """Extract domain from URL"""
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        return parsed.netloc
+    except:
+        return None
+
+def generate_content_hash(content: str) -> Optional[str]:
+    """Generate hash for content deduplication"""
+    try:
+        import hashlib
+        return hashlib.md5(content.encode()).hexdigest() if content else None
+    except:
         return None
 
 @app.get("/articles")
@@ -267,12 +284,13 @@ async def get_articles(user_id: Optional[str] = None):
         
         articles = []
         for article in response.data:
+            content = article.get('extracted_text', '')
             articles.append(ArticleResponse(
                 id=article['id'],
                 title=article['title'],
-                content=article['content'][:200] + "..." if len(article['content']) > 200 else article['content'],
+                content=content[:200] + "..." if len(content) > 200 else content,
                 audio_url=article.get('audio_url'),
-                is_favorite=article.get('is_favorite', False),
+                is_favorite=False,  # Not in your schema
                 created_at=article['created_at'],
                 word_count=article.get('word_count', 0)
             ))
