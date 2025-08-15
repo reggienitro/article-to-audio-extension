@@ -357,16 +357,31 @@ class ArticleToAudioPopup {
         throw new Error('Cloud server is not responding. Please try again later.');
       }
       
-      // Get cookies for the domain if it's a subscription site
-      const cookies = await this.getCookiesForUrl(url);
+      // Extract article content from current tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      let articleData = { title: 'Web Article', content: '' };
       
-      // Make conversion request
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, { action: 'extractArticle' });
+        if (response && response.success) {
+          articleData.title = response.title || 'Web Article';
+          articleData.content = response.content || '';
+        }
+      } catch (e) {
+        // Fallback to basic page info
+        articleData.title = tab.title || 'Web Article';
+        articleData.content = 'Content extraction failed. Please try again.';
+      }
+      
+      // Make conversion request with extracted content
       const response = await fetch(`${SERVER_URL}/convert`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          title: articleData.title,
+          content: articleData.content,
           url: url,
           voice: this.settings.voice,
           storageMode: this.settings.saveAudio ? "cloud" : "local",
