@@ -317,31 +317,55 @@ async def serve_mobile_player():
     <head>
         <title>Article-to-Audio Mobile</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+            h1 { color: #333; text-align: center; margin-bottom: 10px; }
+            .subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+            .article { background: white; margin: 15px 0; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            .article h3 { margin: 0 0 10px 0; color: #333; font-size: 18px; }
+            .article p { color: #666; font-size: 14px; line-height: 1.4; margin: 10px 0; }
+            audio { width: 100%; margin-top: 15px; }
+            .no-articles { text-align: center; color: #999; padding: 40px; }
+            .loading { text-align: center; color: #666; padding: 20px; }
+        </style>
     </head>
     <body>
-        <h1>Article-to-Audio</h1>
-        <p>Cloud-powered cross-device sync!</p>
-        <div id="articles"></div>
+        <h1>🎧 Article-to-Audio</h1>
+        <p class="subtitle">Your converted articles</p>
+        <div id="articles" class="loading">Loading articles...</div>
         
         <script>
             fetch('/articles')
                 .then(r => r.json())
                 .then(data => {
                     const articles = data.articles || [];
-                    document.getElementById('articles').innerHTML = 
-                        articles.map(a => `
-                            <div style="margin: 10px; padding: 10px; border: 1px solid #ccc;">
-                                <h3>${a.title}</h3>
-                                <p>${a.content}</p>
-                                ${a.audio_url ? `<audio controls src="${a.audio_url}"></audio>` : '<p>No audio</p>'}
-                            </div>
-                        `).join('');
+                    const container = document.getElementById('articles');
+                    
+                    if (articles.length === 0) {
+                        container.innerHTML = '<div class="no-articles">No articles yet. Convert some articles using the Chrome extension!</div>';
+                        return;
+                    }
+                    
+                    container.innerHTML = articles.map(a => `
+                        <div class="article">
+                            <h3>${a.title}</h3>
+                            <p>${a.content}</p>
+                            ${a.audio_url ? `<audio controls preload="metadata">
+                                <source src="${a.audio_url}" type="audio/mpeg">
+                                Your browser does not support the audio element.
+                            </audio>` : '<p style="color: #999;">Audio processing...</p>'}
+                        </div>
+                    `).join('');
+                })
+                .catch(err => {
+                    document.getElementById('articles').innerHTML = '<div class="no-articles">Error loading articles. Please try again.</div>';
                 });
         </script>
     </body>
     </html>
     """
-    return JSONResponse(content={"html": mobile_html}, media_type="text/html")
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=mobile_html)
 
 # Run server
 if __name__ == "__main__":
