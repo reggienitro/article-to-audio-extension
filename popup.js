@@ -348,41 +348,63 @@ class ArticleToAudioPopup {
   }
   
   async callArticle2AudioCLI(url) {
-    const SERVER_URL = 'http://localhost:8888';
+    const SERVER_URL = 'https://article-to-audio-extension.onrender.com';
     
     try {
       // Check if server is running
-      const statusResponse = await fetch(`${SERVER_URL}/status`);
+      const statusResponse = await fetch(`${SERVER_URL}/health`);
       if (!statusResponse.ok) {
-        throw new Error('Local server is not running. Please start server.py first.');
+        throw new Error('Cloud server is not responding. Please try again later.');
       }
       
-      // Get cookies for the domain if it's a subscription site
-      const cookies = await this.getCookiesForUrl(url);
+      // Extract article content from current tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      let articleData = { title: 'Web Article', content: '' };
       
-      // Make conversion request
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, { action: 'extractArticle' });
+        if (response && response.success) {
+          articleData.title = response.title || 'Web Article';
+          articleData.content = response.content || '';
+          console.log('Extracted content:', {
+            title: articleData.title,
+            contentLength: articleData.content.length,
+            contentPreview: articleData.content.substring(0, 200)
+          });
+        }
+      } catch (e) {
+        console.error('Content extraction failed:', e);
+        // Fallback to basic page info
+        articleData.title = tab.title || 'Web Article';
+        articleData.content = 'Content extraction failed. Please try again.';
+      }
+      
+      // Make conversion request with extracted content
       const response = await fetch(`${SERVER_URL}/convert`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          title: articleData.title,
+          content: articleData.content,
           url: url,
-          voice: this.settings.voice,
-          speed: this.settings.speed,
-          save_to_storage: this.settings.saveAudio,
-          cookies: cookies
+          voice: this.mapVoiceToEdgeTTS(this.settings.voice),
+          storageMode: this.settings.saveAudio ? "cloud" : "local",
+          isFavorite: false
         })
       });
       
+      console.log('Server response status:', response.status);
       const result = await response.json();
+      console.log('Server response data:', result);
       
       if (result.success) {
         return {
           success: true,
-          filename: result.audio_file || 'Unknown filename',
+          filename: result.filename || result.audio_file || 'Unknown filename',
           duration: 'Conversion completed',
-          output: result.output
+          output: result.output || result.message
         };
       } else {
         // Handle enhanced error response with structured error information
@@ -393,7 +415,8 @@ class ArticleToAudioPopup {
           error.originalError = result.error;
           throw error;
         } else {
-          throw new Error(result.error || 'Unknown conversion error');
+          console.error('Server error details:', result);
+          throw new Error(result.error || result.detail || 'Unknown conversion error');
         }
       }
       
@@ -416,12 +439,12 @@ class ArticleToAudioPopup {
     this.updateStatus('Testing article extraction...', 'info');
     
     try {
-      const SERVER_URL = 'http://localhost:8888';
+      const SERVER_URL = 'https://article-to-audio-extension.onrender.com';
       
       // Check if server is running first
-      const statusResponse = await fetch(`${SERVER_URL}/status`);
+      const statusResponse = await fetch(`${SERVER_URL}/health`);
       if (!statusResponse.ok) {
-        throw new Error('Local server is not running. Please start server.py first.');
+        throw new Error('Cloud server is not responding. Please try again later.');
       }
       
       // Test article extraction via server
@@ -532,6 +555,21 @@ class ArticleToAudioPopup {
       console.warn('Failed to get cookies:', error);
       return null;
     }
+  }
+
+  mapVoiceToEdgeTTS(voice) {
+    // Map simple voice names to Edge TTS voice names
+    const voiceMap = {
+      'christopher': 'en-US-ChristopherNeural',
+      'guy': 'en-US-GuyNeural', 
+      'eric': 'en-US-EricNeural',
+      'brian': 'en-US-BrianNeural',
+      'davis': 'en-US-DavisNeural',
+      'jason': 'en-US-JasonNeural',
+      'tony': 'en-US-TonyNeural'
+    };
+    
+    return voiceMap[voice] || 'en-US-BrianNeural'; // Default fallback
   }
 
   openHelp() {
