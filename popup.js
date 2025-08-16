@@ -366,8 +366,14 @@ class ArticleToAudioPopup {
         if (response && response.success) {
           articleData.title = response.title || 'Web Article';
           articleData.content = response.content || '';
+          console.log('Extracted content:', {
+            title: articleData.title,
+            contentLength: articleData.content.length,
+            contentPreview: articleData.content.substring(0, 200)
+          });
         }
       } catch (e) {
+        console.error('Content extraction failed:', e);
         // Fallback to basic page info
         articleData.title = tab.title || 'Web Article';
         articleData.content = 'Content extraction failed. Please try again.';

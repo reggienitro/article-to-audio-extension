@@ -123,6 +123,10 @@ async def convert_article(request: ConversionRequest):
                 print(f"URL extraction failed: {e}")
                 raise HTTPException(status_code=400, detail=f"Failed to extract content from URL: {str(e)}")
         
+        # Check if we have content to convert
+        if not request.content or len(request.content.strip()) < 50:
+            raise HTTPException(status_code=400, detail="Article content is too short or missing")
+            
         print(f"Converting: {request.title} ({len(request.content)} chars)")
         
         # Generate unique filename
@@ -210,10 +214,12 @@ async def upload_to_supabase_storage(file_path: str, filename: str) -> Optional[
         )
         
         if response.status_code == 200:
-            # Get public URL
-            url_response = supabase.storage.from_('audio-files').get_public_url(filename)
+            # Get public URL  
+            public_url_response = supabase.storage.from_('audio-files').get_public_url(filename)
+            public_url = public_url_response.get('publicUrl') if isinstance(public_url_response, dict) else public_url_response
             print(f"File uploaded to Supabase: {filename}")
-            return url_response
+            print(f"Public URL: {public_url}")
+            return public_url
         else:
             print(f"Upload failed: {response}")
             return None
