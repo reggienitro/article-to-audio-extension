@@ -214,12 +214,28 @@ async def upload_to_supabase_storage(file_path: str, filename: str) -> Optional[
         )
         
         if response.status_code == 200:
-            # Get public URL  
-            public_url_response = supabase.storage.from_('audio-files').get_public_url(filename)
-            public_url = public_url_response.get('publicUrl') if isinstance(public_url_response, dict) else public_url_response
-            print(f"File uploaded to Supabase: {filename}")
-            print(f"Public URL: {public_url}")
-            return public_url
+            # Get public URL - try different methods for different client versions
+            try:
+                public_url_response = supabase.storage.from_('audio-files').get_public_url(filename)
+                print(f"Raw public URL response: {public_url_response}")
+                
+                # Handle different response formats
+                if isinstance(public_url_response, dict):
+                    public_url = public_url_response.get('publicUrl') or public_url_response.get('public_url')
+                elif hasattr(public_url_response, 'public_url'):
+                    public_url = public_url_response.public_url
+                else:
+                    public_url = str(public_url_response)
+                    
+                print(f"File uploaded to Supabase: {filename}")
+                print(f"Extracted public URL: {public_url}")
+                return public_url
+            except Exception as url_error:
+                print(f"Failed to get public URL: {url_error}")
+                # Fallback: construct URL manually
+                public_url = f"{supabase_url}/storage/v1/object/public/audio-files/{filename}"
+                print(f"Using fallback URL: {public_url}")
+                return public_url
         else:
             print(f"Upload failed: {response}")
             return None
