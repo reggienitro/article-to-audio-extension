@@ -43,6 +43,7 @@ Thumbs.db
 .env.local
 *.key
 config/secrets.json
+.mcp.json
 
 # SSL certificates
 *.crt
