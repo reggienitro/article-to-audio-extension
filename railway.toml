@@ -1,0 +1,14 @@
+[build]
+builder = "dockerfile"
+
+[deploy]
+startCommand = "python cloud-server.py"
+healthcheckPath = "/health"
+healthcheckTimeout = 100
+restartPolicyType = "on_failure"
+
+[env]
+PORT = 8000
+EDGE_TTS_VOICE = "en-US-BrianNeural"
+DEFAULT_STORAGE_MODE = "local"
+AUTO_SYNC = "false"

@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: article-to-audio-server
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python cloud-server.py
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: SUPABASE_URL
+        value: ""  # Optional - server works without Supabase
+      - key: SUPABASE_SERVICE_KEY
+        value: ""  # Optional - server works without Supabase
+      - key: EDGE_TTS_VOICE
+        value: en-US-BrianNeural
+      - key: DEFAULT_STORAGE_MODE
+        value: local
+      - key: AUTO_SYNC
+        value: false
+    disk:
+      name: audio-storage
+      mountPath: /app/output
+      sizeGB: 1
