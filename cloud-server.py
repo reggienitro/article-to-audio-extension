@@ -34,7 +34,7 @@ load_dotenv()
 
 app = FastAPI(
     title="Article-to-Audio Personal Data Lake", 
-    version="2.0.0",
+    version="2.0.1",
     description="Personal article-to-audio converter with Supabase data lake integration"
 )
 
