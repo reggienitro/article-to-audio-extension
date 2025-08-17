@@ -23,12 +23,12 @@ VALUES ('audio-files', 'audio-files', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- Create storage policy for audio files (public read access)
-CREATE POLICY IF NOT EXISTS "Public audio access" 
+CREATE POLICY "Public audio access" 
 ON storage.objects FOR SELECT 
 USING (bucket_id = 'audio-files');
 
 -- Create storage policy for audio upload (authenticated users)
-CREATE POLICY IF NOT EXISTS "Authenticated audio upload" 
+CREATE POLICY "Authenticated audio upload" 
 ON storage.objects FOR INSERT 
 WITH CHECK (bucket_id = 'audio-files');
 
