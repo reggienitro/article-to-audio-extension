@@ -10,15 +10,17 @@ services:
       - key: PORT
         value: 8000
       - key: SUPABASE_URL
-        value: ""  # Optional - server works without Supabase
-      - key: SUPABASE_SERVICE_KEY
-        value: ""  # Optional - server works without Supabase
+        value: https://qslpqxjoupwyclmguniz.supabase.co
+      - key: SUPABASE_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFzbHBxeGpvdXB3eWNsbWd1bml6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNTMzMjUsImV4cCI6MjA3MDYyOTMyNX0.dB41u9cSpH4bD_6W-Jx5rZ4D9ud5yaceNJq-7y6QY5A
       - key: EDGE_TTS_VOICE
         value: en-US-BrianNeural
       - key: DEFAULT_STORAGE_MODE
-        value: local
+        value: cloud
       - key: AUTO_SYNC
-        value: false
+        value: true
+      - key: USER_EMAIL
+        value: aettefagh@gmail.com
     disk:
       name: audio-storage
       mountPath: /app/output
