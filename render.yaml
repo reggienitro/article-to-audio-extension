@@ -21,6 +21,8 @@ services:
         value: true
       - key: USER_EMAIL
         value: aettefagh@gmail.com
+      - key: DEPLOYMENT_VERSION
+        value: v2.0.2-enhanced
     disk:
       name: audio-storage
       mountPath: /app/output
