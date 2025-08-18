@@ -1,13 +1,18 @@
 // Article to Audio Extension Content Script
 
+console.log('🎯 Article to Audio Content Script Loaded');
+
 class ArticleToAudioContent {
   constructor() {
+    console.log('🎯 ArticleToAudioContent constructor called');
     this.init();
   }
   
   init() {
+    console.log('🎯 Initializing content script...');
     // Listen for messages from background script
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+      console.log('🎯 Content script received message:', message);
       this.handleMessage(message, sender, sendResponse);
       return true; // Keep message channel open for async responses
     });

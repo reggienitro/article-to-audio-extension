@@ -362,21 +362,65 @@ class ArticleToAudioPopup {
       let articleData = { title: 'Web Article', content: '' };
       
       try {
+        // Try content script first
         const response = await chrome.tabs.sendMessage(tab.id, { action: 'extractArticle' });
         if (response && response.success) {
           articleData.title = response.title || 'Web Article';
           articleData.content = response.content || '';
-          console.log('Extracted content:', {
+          console.log('Extracted content via content script:', {
             title: articleData.title,
-            contentLength: articleData.content.length,
-            contentPreview: articleData.content.substring(0, 200)
+            contentLength: articleData.content.length
           });
         }
       } catch (e) {
-        console.error('Content extraction failed:', e);
-        // Fallback to basic page info
-        articleData.title = tab.title || 'Web Article';
-        articleData.content = 'Content extraction failed. Please try again.';
+        console.error('Content script extraction failed:', e);
+        
+        // Fallback: Direct script injection
+        try {
+          const injectionResults = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            function: () => {
+              // Extract article content directly
+              const selectors = [
+                'article', '[role="main"] article', '.article-content', '.post-content', 
+                '.entry-content', '.story-body', '.article-body', '.post-body', '.content-body'
+              ];
+              
+              let content = '';
+              let title = document.title;
+              
+              for (const selector of selectors) {
+                const element = document.querySelector(selector);
+                if (element) {
+                  content = element.innerText || element.textContent || '';
+                  break;
+                }
+              }
+              
+              // If no article-specific content found, get main content
+              if (!content) {
+                const main = document.querySelector('main') || document.querySelector('#main') || document.body;
+                content = main ? main.innerText || main.textContent || '' : '';
+              }
+              
+              return { title, content: content.trim() };
+            }
+          });
+          
+          if (injectionResults && injectionResults[0] && injectionResults[0].result) {
+            const result = injectionResults[0].result;
+            articleData.title = result.title || tab.title || 'Web Article';
+            articleData.content = result.content || '';
+            console.log('Extracted content via script injection:', {
+              title: articleData.title,
+              contentLength: articleData.content.length
+            });
+          }
+        } catch (injectionError) {
+          console.error('Script injection failed:', injectionError);
+          articleData.title = tab.title || 'Web Article';
+          articleData.content = 'Content extraction failed. Please try again.';
+        }
       }
       
       // Make conversion request with extracted content
