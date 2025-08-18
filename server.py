@@ -42,8 +42,8 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow Chrome extension
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_credentials=False,  # Set to False for wildcard origins
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -143,10 +143,6 @@ async def health_check():
         "storage": "supabase" if supabase else "local"
     }
 
-@app.options("/convert")
-async def convert_options():
-    """Handle CORS preflight for convert endpoint"""
-    return {}
 
 @app.post("/convert", response_model=ArticleAudio)
 async def convert_article(request: ConversionRequest):
