@@ -143,6 +143,11 @@ async def health_check():
         "storage": "supabase" if supabase else "local"
     }
 
+@app.options("/convert")
+async def convert_options():
+    """Handle CORS preflight for convert endpoint"""
+    return {}
+
 @app.post("/convert", response_model=ArticleAudio)
 async def convert_article(request: ConversionRequest):
     """Convert article to audio and store in data lake"""
