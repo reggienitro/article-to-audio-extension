@@ -151,22 +151,29 @@ async def convert_article(request: ConversionRequest):
     # Calculate word count
     word_count = len(request.content.split())
     
-    # Generate audio
+    # Generate audio in memory first
     audio_filename = f"{uuid.uuid4().hex[:8]}_{request.title[:30].replace(' ', '_')}.mp3"
-    audio_path = OUTPUT_DIR / audio_filename
     
     try:
-        # Use edge-tts for conversion
+        # Generate audio to memory buffer
+        import io
+        audio_buffer = io.BytesIO()
         communicate = edge_tts.Communicate(request.content, request.voice)
-        await communicate.save(str(audio_path))
-        print(f"✅ Audio generated: {audio_filename}")
+        
+        # Save to buffer instead of file
+        await communicate.save(audio_buffer)
+        audio_data = audio_buffer.getvalue()
+        audio_buffer.close()
+        
+        print(f"✅ Audio generated in memory: {audio_filename} ({len(audio_data)} bytes)")
+        
+        # Save to temporary file for serving and potential Supabase upload
+        audio_path = OUTPUT_DIR / audio_filename
+        with open(audio_path, 'wb') as f:
+            f.write(audio_data)
         
         # Store in Supabase if available
         if supabase:
-            # Upload audio to storage
-            with open(audio_path, 'rb') as f:
-                audio_data = f.read()
-            
             try:
                 # Upload to Supabase storage
                 storage_path = f"audio/{audio_filename}"
@@ -214,14 +221,16 @@ async def convert_article(request: ConversionRequest):
                     
             except Exception as e:
                 print(f"⚠️ Supabase storage failed: {e}")
-                # Fall back to local storage
         
-        # Local storage fallback
+        # Local storage fallback - return base64 encoded audio for immediate access
+        import base64
+        audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+        
         return ArticleAudio(
             id=str(uuid.uuid4()),
             title=request.title,
             content=request.content,
-            audio_url=f"/audio/{audio_filename}",
+            audio_url=f"data:audio/mpeg;base64,{audio_base64}",  # Embed audio directly
             audio_filename=audio_filename,
             source_url=request.url,
             voice=request.voice,
