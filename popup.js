@@ -443,7 +443,19 @@ class ArticleToAudioPopup {
       const result = await response.json();
       console.log('Server response data:', result);
       
-      if (result.success) {
+      // Check if response is successful (ArticleAudio object has id field)
+      if (result.id && result.audio_filename) {
+        console.log('✅ Conversion successful!', result);
+        return {
+          success: true,
+          filename: result.audio_filename,
+          audio_url: result.audio_url,
+          duration: `Converted ${result.word_count} words`,
+          output: `Audio saved as: ${result.audio_filename}`,
+          article_id: result.id
+        };
+      } else if (result.success) {
+        // Legacy success format
         return {
           success: true,
           filename: result.filename || result.audio_file || 'Unknown filename',
@@ -451,7 +463,7 @@ class ArticleToAudioPopup {
           output: result.output || result.message
         };
       } else {
-        // Handle enhanced error response with structured error information
+        // Handle error response
         if (result.error_type && result.user_message) {
           const error = new Error(result.user_message);
           error.errorType = result.error_type;
