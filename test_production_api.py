@@ -9,7 +9,7 @@ import json
 import time
 
 # UPDATE THIS TO YOUR RENDER URL
-BASE_URL = "https://article-to-audio-server.onrender.com"  # Replace with actual URL
+BASE_URL = "https://article-to-audio-extension-1.onrender.com"
 
 def test_production_health():
     """Test production health endpoint"""

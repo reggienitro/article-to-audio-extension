@@ -3,7 +3,7 @@ services:
     name: article-to-audio-server
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: python cloud-server.py
+    startCommand: python cloud-server-debug.py
     plan: free
     healthCheckPath: /health
     envVars:
