@@ -305,7 +305,7 @@ def get_mobile_html():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Article-to-Audio Mobile</title>
+    <title>Audio Library - Mobile</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -333,8 +333,13 @@ def get_mobile_html():
 </head>
 <body>
     <div class="header">
-        <h1>🎧 Audio Convert</h1>
-        <p>Mobile Interface</p>
+        <h1>🎧 Audio Library</h1>
+        <p>Your Chrome Extension Audio</p>
+    </div>
+    
+    <div class="library-section">
+        <button class="btn" id="refreshBtn" style="width: 100%; margin-bottom: 15px;">🔄 Refresh Library</button>
+        <div id="audioLibrary"></div>
     </div>
     
     <form class="convert-form" id="convertForm">
@@ -363,6 +368,53 @@ def get_mobile_html():
     </form>
 
     <script>
+        // Load audio library on page load
+        document.addEventListener('DOMContentLoaded', loadLibrary);
+        document.getElementById('refreshBtn').addEventListener('click', loadLibrary);
+        
+        async function loadLibrary() {
+            const library = document.getElementById('audioLibrary');
+            library.innerHTML = '<p>Loading...</p>';
+            
+            try {
+                const response = await fetch('/library');
+                const articles = await response.json();
+                
+                if (articles.length === 0) {
+                    library.innerHTML = '<p>No audio articles yet. Use Chrome extension to convert articles!</p>';
+                    return;
+                }
+                
+                library.innerHTML = articles.map(article => `
+                    <div class="audio-item" style="background: rgba(255,255,255,0.1); padding: 15px; margin: 10px 0; border-radius: 8px;">
+                        <h3 style="font-size: 14px; margin-bottom: 8px;">${article.title}</h3>
+                        <audio controls style="width: 100%; margin: 8px 0;" data-article-id="${article.id}">
+                            <source src="${article.audio_url}" type="audio/mpeg">
+                        </audio>
+                        <div style="display: flex; gap: 5px; margin-top: 8px;">
+                            <button onclick="changeSpeed('${article.id}', 0.75)" style="padding: 4px 8px; background: #2196F3; color: white; border: none; border-radius: 4px; font-size: 12px;">0.75x</button>
+                            <button onclick="changeSpeed('${article.id}', 1.0)" style="padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 12px;">1x</button>
+                            <button onclick="changeSpeed('${article.id}', 1.25)" style="padding: 4px 8px; background: #FF9800; color: white; border: none; border-radius: 4px; font-size: 12px;">1.25x</button>
+                            <button onclick="changeSpeed('${article.id}', 1.5)" style="padding: 4px 8px; background: #f44336; color: white; border: none; border-radius: 4px; font-size: 12px;">1.5x</button>
+                        </div>
+                        <p style="font-size: 11px; opacity: 0.7; margin-top: 5px;">${article.word_count} words • ${new Date(article.created_at).toLocaleDateString()}</p>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                library.innerHTML = '<p>Error loading library. Make sure Supabase is connected.</p>';
+                console.error('Library error:', error);
+            }
+        }
+        
+        function changeSpeed(articleId, speed) {
+            const audio = document.querySelector(`audio[data-article-id="${articleId}"]`);
+            if (audio) {
+                audio.playbackRate = speed;
+                console.log(`Speed changed to ${speed}x for article ${articleId}`);
+            }
+        }
+        
         document.getElementById('convertForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
