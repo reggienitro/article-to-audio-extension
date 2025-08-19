@@ -514,7 +514,7 @@ async def convert_article(request: ConversionRequest):
                     'metadata': request.metadata
                 }
                 
-                result = supabase.table('article_audio').insert(article_data).execute()
+                result = supabase.table('articles').insert(article_data).execute()
                 
                 if result.data:
                     article = result.data[0]
@@ -569,7 +569,7 @@ async def get_library(
         raise HTTPException(status_code=503, detail="Data lake not available")
     
     try:
-        query = supabase.table('article_audio').select('*')
+        query = supabase.table('articles').select('*')
         
         if favorites_only:
             query = query.eq('is_favorite', True)
@@ -607,7 +607,7 @@ async def get_article(article_id: str):
         raise HTTPException(status_code=503, detail="Data lake not available")
     
     try:
-        result = supabase.table('article_audio').select('*').eq('id', article_id).execute()
+        result = supabase.table('articles').select('*').eq('id', article_id).execute()
         
         if result.data:
             item = result.data[0]
@@ -646,7 +646,7 @@ async def toggle_favorite(article_id: str):
             new_status = not current_status
             
             # Update status
-            update_result = supabase.table('article_audio').update({
+            update_result = supabase.table('articles').update({
                 'is_favorite': new_status
             }).eq('id', article_id).execute()
             
