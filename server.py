@@ -14,9 +14,9 @@ from typing import Optional, List, Dict, Any
 import uuid
 import base64
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Query
+from fastapi import FastAPI, HTTPException, UploadFile, File, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pydantic import BaseModel, Field
 import uvicorn
 
@@ -93,22 +93,41 @@ class ArticleAudio(BaseModel):
     created_at: str
     metadata: Dict[str, Any]
 
-@app.get("/")
-async def root():
-    """API documentation"""
-    return {
-        "service": "Article-to-Audio Personal Data Lake",
-        "version": "2.0.2",
-        "docs": "/docs",
-        "health": "/health",
-        "purpose": "Personal data lake for AI agent access",
-        "debug_info": {
-            "server_file": __file__,
-            "supabase_connected": supabase is not None,
-            "routes_count": len(app.routes),
-            "timestamp": datetime.now().isoformat()
-        }
-    }
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    """Serve responsive UI - mobile for mobile devices, web for desktop"""
+    user_agent = request.headers.get("user-agent", "").lower()
+    
+    # Detect mobile devices
+    is_mobile = any(device in user_agent for device in [
+        'mobile', 'iphone', 'android', 'blackberry', 'windows phone'
+    ])
+    
+    try:
+        if is_mobile:
+            # Serve mobile interface
+            with open('mobile-app.html', 'r', encoding='utf-8') as f:
+                return HTMLResponse(content=f.read())
+        else:
+            # Serve web interface  
+            with open('web-ui.html', 'r', encoding='utf-8') as f:
+                return HTMLResponse(content=f.read())
+    except FileNotFoundError:
+        # Fallback to API info if UI files not found
+        return JSONResponse({
+            "service": "Article-to-Audio Personal Data Lake",
+            "version": "2.0.2",
+            "docs": "/docs",
+            "health": "/health",
+            "purpose": "Personal data lake for AI agent access",
+            "ui_error": "UI files not found",
+            "debug_info": {
+                "server_file": __file__,
+                "supabase_connected": supabase is not None,
+                "routes_count": len(app.routes),
+                "timestamp": datetime.now().isoformat()
+            }
+        })
 
 @app.get("/debug")
 async def debug_info():

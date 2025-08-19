@@ -510,7 +510,7 @@
     <script>
         class ArticleToAudioWebUI {
             constructor() {
-                this.serverUrl = 'http://localhost:8888';
+                this.serverUrl = window.location.origin; // Use same domain as the UI
                 this.isConverting = false;
                 this.audioLibrary = [];
                 
