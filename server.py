@@ -155,22 +155,18 @@ async def convert_article(request: ConversionRequest):
     audio_filename = f"{uuid.uuid4().hex[:8]}_{request.title[:30].replace(' ', '_')}.mp3"
     
     try:
-        # Generate audio to memory buffer
-        import io
-        audio_buffer = io.BytesIO()
+        # Generate audio directly to file first
+        audio_path = OUTPUT_DIR / audio_filename
         communicate = edge_tts.Communicate(request.content, request.voice)
         
-        # Save to buffer instead of file
-        await communicate.save(audio_buffer)
-        audio_data = audio_buffer.getvalue()
-        audio_buffer.close()
+        # Save directly to file
+        await communicate.save(str(audio_path))
         
-        print(f"✅ Audio generated in memory: {audio_filename} ({len(audio_data)} bytes)")
+        # Read the file for base64 encoding and potential Supabase upload
+        with open(audio_path, 'rb') as f:
+            audio_data = f.read()
         
-        # Save to temporary file for serving and potential Supabase upload
-        audio_path = OUTPUT_DIR / audio_filename
-        with open(audio_path, 'wb') as f:
-            f.write(audio_data)
+        print(f"✅ Audio generated: {audio_filename} ({len(audio_data)} bytes)")
         
         # Store in Supabase if available
         if supabase:
