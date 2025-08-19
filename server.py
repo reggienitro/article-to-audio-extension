@@ -103,31 +103,269 @@ async def root(request: Request):
         'mobile', 'iphone', 'android', 'blackberry', 'windows phone'
     ])
     
-    try:
-        if is_mobile:
-            # Serve mobile interface
-            with open('mobile-app.html', 'r', encoding='utf-8') as f:
-                return HTMLResponse(content=f.read())
-        else:
-            # Serve web interface  
-            with open('web-ui.html', 'r', encoding='utf-8') as f:
-                return HTMLResponse(content=f.read())
-    except FileNotFoundError:
-        # Fallback to API info if UI files not found
-        return JSONResponse({
-            "service": "Article-to-Audio Personal Data Lake",
-            "version": "2.0.2",
-            "docs": "/docs",
-            "health": "/health",
-            "purpose": "Personal data lake for AI agent access",
-            "ui_error": "UI files not found",
-            "debug_info": {
-                "server_file": __file__,
-                "supabase_connected": supabase is not None,
-                "routes_count": len(app.routes),
-                "timestamp": datetime.now().isoformat()
+    # Embedded HTML UI (works in Render deployment)
+    if is_mobile:
+        html_content = get_mobile_html()
+    else:
+        html_content = get_web_html()
+        
+    return HTMLResponse(content=html_content)
+
+def get_web_html():
+    """Embedded web interface HTML"""
+    return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article-to-Audio Personal Data Lake</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 40px; }
+        .header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        .convert-form { background: rgba(255,255,255,0.1); padding: 30px; border-radius: 15px; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 500; }
+        input, textarea, select { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; }
+        textarea { min-height: 120px; resize: vertical; }
+        .btn { background: #4CAF50; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        .btn:hover { background: #45a049; }
+        .btn:disabled { background: #cccccc; cursor: not-allowed; }
+        .status { margin-top: 20px; padding: 15px; border-radius: 8px; }
+        .status.success { background: rgba(76, 175, 80, 0.2); border: 1px solid #4CAF50; }
+        .status.error { background: rgba(244, 67, 54, 0.2); border: 1px solid #f44336; }
+        .audio-player { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎧 Article-to-Audio</h1>
+            <p>Personal Data Lake v2.0.2</p>
+        </div>
+        
+        <form class="convert-form" id="convertForm">
+            <div class="form-group">
+                <label for="url">Article URL (optional):</label>
+                <input type="url" id="url" placeholder="https://example.com/article">
+            </div>
+            
+            <div class="form-group">
+                <label for="title">Title:</label>
+                <input type="text" id="title" placeholder="Article title" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="content">Content:</label>
+                <textarea id="content" placeholder="Paste article content here..." required></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="voice">Voice:</label>
+                <select id="voice">
+                    <option value="en-US-BrianNeural">Brian (US Male)</option>
+                    <option value="en-US-JennyNeural">Jenny (US Female)</option>
+                    <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
+                    <option value="en-AU-WilliamNeural">William (AU Male)</option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn" id="convertBtn">Convert to Audio</button>
+            
+            <div id="status"></div>
+            <div id="audioPlayer"></div>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('convertForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('convertBtn');
+            const status = document.getElementById('status');
+            const audioPlayer = document.getElementById('audioPlayer');
+            
+            btn.disabled = true;
+            btn.textContent = 'Converting...';
+            status.innerHTML = '';
+            audioPlayer.innerHTML = '';
+            
+            try {
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: document.getElementById('title').value,
+                        content: document.getElementById('content').value,
+                        voice: document.getElementById('voice').value,
+                        source_url: document.getElementById('url').value || null
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.id) {
+                    status.innerHTML = '<div class="status success">✅ Conversion successful!</div>';
+                    
+                    if (result.audio_url) {
+                        audioPlayer.innerHTML = `
+                            <div class="audio-player">
+                                <h3>🎵 ${result.title}</h3>
+                                <audio controls style="width: 100%; margin-top: 10px;">
+                                    <source src="${result.audio_url}" type="audio/mpeg">
+                                    Your browser does not support the audio element.
+                                </audio>
+                                <p style="margin-top: 10px; opacity: 0.8;">
+                                    ${result.word_count} words • Generated: ${new Date(result.created_at).toLocaleString()}
+                                </p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    throw new Error(result.detail || 'Conversion failed');
+                }
+            } catch (error) {
+                status.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Convert to Audio';
             }
-        })
+        });
+    </script>
+</body>
+</html>
+"""
+
+def get_mobile_html():
+    """Embedded mobile interface HTML"""
+    return """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article-to-Audio Mobile</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 15px;
+        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 2rem; margin-bottom: 5px; }
+        .convert-form { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 14px; }
+        input, textarea, select { width: 100%; padding: 10px; border: none; border-radius: 8px; font-size: 16px; }
+        textarea { min-height: 100px; }
+        .btn { width: 100%; background: #4CAF50; color: white; padding: 15px; border: none; border-radius: 8px; font-size: 18px; margin-top: 10px; }
+        .btn:disabled { background: #cccccc; }
+        .status { margin-top: 15px; padding: 10px; border-radius: 8px; font-size: 14px; }
+        .status.success { background: rgba(76, 175, 80, 0.3); }
+        .status.error { background: rgba(244, 67, 54, 0.3); }
+        .audio-player { margin-top: 15px; }
+        audio { width: 100%; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎧 Audio Convert</h1>
+        <p>Mobile Interface</p>
+    </div>
+    
+    <form class="convert-form" id="convertForm">
+        <div class="form-group">
+            <label for="title">Title:</label>
+            <input type="text" id="title" placeholder="Article title" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="content">Content:</label>
+            <textarea id="content" placeholder="Paste content here..." required></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label for="voice">Voice:</label>
+            <select id="voice">
+                <option value="en-US-BrianNeural">Brian (US)</option>
+                <option value="en-US-JennyNeural">Jenny (US)</option>
+            </select>
+        </div>
+        
+        <button type="submit" class="btn" id="convertBtn">Convert to Audio</button>
+        
+        <div id="status"></div>
+        <div id="audioPlayer"></div>
+    </form>
+
+    <script>
+        document.getElementById('convertForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = document.getElementById('convertBtn');
+            const status = document.getElementById('status');
+            const audioPlayer = document.getElementById('audioPlayer');
+            
+            btn.disabled = true;
+            btn.textContent = 'Converting...';
+            status.innerHTML = '';
+            audioPlayer.innerHTML = '';
+            
+            try {
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: document.getElementById('title').value,
+                        content: document.getElementById('content').value,
+                        voice: document.getElementById('voice').value
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.id) {
+                    status.innerHTML = '<div class="status success">✅ Success!</div>';
+                    
+                    if (result.audio_url) {
+                        audioPlayer.innerHTML = `
+                            <div class="audio-player">
+                                <h3>🎵 Ready to Play</h3>
+                                <audio controls>
+                                    <source src="${result.audio_url}" type="audio/mpeg">
+                                </audio>
+                                <p style="margin-top: 8px; font-size: 12px; opacity: 0.8;">
+                                    ${result.word_count} words
+                                </p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    throw new Error(result.detail || 'Failed');
+                }
+            } catch (error) {
+                status.innerHTML = `<div class="status error">❌ ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Convert to Audio';
+            }
+        });
+    </script>
+</body>
+</html>
+"""
 
 @app.get("/debug")
 async def debug_info():
