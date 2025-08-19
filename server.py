@@ -153,6 +153,10 @@ def get_web_html():
             <p>Personal Data Lake v2.0.2</p>
         </div>
         
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button type="button" class="btn" id="autoFillBtn" style="background: #2196F3;">📄 Auto-Fill from Current Page</button>
+        </div>
+        
         <form class="convert-form" id="convertForm">
             <div class="form-group">
                 <label for="url">Article URL (optional):</label>
@@ -187,6 +191,44 @@ def get_web_html():
     </div>
 
     <script>
+        // Auto-fill functionality
+        document.getElementById('autoFillBtn').addEventListener('click', () => {
+            // Get current page info
+            document.getElementById('url').value = window.location.href;
+            document.getElementById('title').value = document.title;
+            
+            // Try to extract main content
+            const content = extractPageContent();
+            if (content) {
+                document.getElementById('content').value = content;
+            } else {
+                alert('Could not auto-extract content. Please paste manually.');
+            }
+        });
+        
+        function extractPageContent() {
+            // Try common content selectors
+            const selectors = [
+                'article', '[role="main"]', '.article-content', '.post-content',
+                '.entry-content', '.content', 'main', '.article-body'
+            ];
+            
+            for (const selector of selectors) {
+                const element = document.querySelector(selector);
+                if (element) {
+                    return element.innerText.trim();
+                }
+            }
+            
+            // Fallback: get all paragraph text
+            const paragraphs = Array.from(document.querySelectorAll('p'));
+            if (paragraphs.length > 0) {
+                return paragraphs.map(p => p.innerText).join('\\n\\n').trim();
+            }
+            
+            return null;
+        }
+        
         document.getElementById('convertForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -220,15 +262,25 @@ def get_web_html():
                         audioPlayer.innerHTML = `
                             <div class="audio-player">
                                 <h3>🎵 ${result.title}</h3>
-                                <audio controls style="width: 100%; margin-top: 10px;">
+                                <audio controls style="width: 100%; margin-top: 10px;" preload="metadata">
                                     <source src="${result.audio_url}" type="audio/mpeg">
                                     Your browser does not support the audio element.
                                 </audio>
                                 <p style="margin-top: 10px; opacity: 0.8;">
                                     ${result.word_count} words • Generated: ${new Date(result.created_at).toLocaleString()}
                                 </p>
+                                <div style="margin-top: 10px;">
+                                    <button onclick="this.previousElementSibling.previousElementSibling.play()" style="padding: 5px 10px; background: #4CAF50; color: white; border: none; border-radius: 4px;">▶️ Play</button>
+                                    <button onclick="this.previousElementSibling.previousElementSibling.pause()" style="padding: 5px 10px; background: #f44336; color: white; border: none; border-radius: 4px; margin-left: 5px;">⏸️ Pause</button>
+                                </div>
                             </div>
                         `;
+                        
+                        // Test audio loading
+                        const audio = audioPlayer.querySelector('audio');
+                        audio.addEventListener('loadstart', () => console.log('Audio loading started'));
+                        audio.addEventListener('canplay', () => console.log('Audio can play'));
+                        audio.addEventListener('error', (e) => console.error('Audio error:', e));
                     }
                 } else {
                     throw new Error(result.detail || 'Conversion failed');
@@ -343,14 +395,24 @@ def get_mobile_html():
                         audioPlayer.innerHTML = `
                             <div class="audio-player">
                                 <h3>🎵 Ready to Play</h3>
-                                <audio controls>
+                                <audio controls style="width: 100%;" preload="metadata">
                                     <source src="${result.audio_url}" type="audio/mpeg">
                                 </audio>
                                 <p style="margin-top: 8px; font-size: 12px; opacity: 0.8;">
                                     ${result.word_count} words
                                 </p>
+                                <div style="margin-top: 10px; text-align: center;">
+                                    <button onclick="this.parentElement.previousElementSibling.previousElementSibling.play()" style="padding: 8px 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; margin: 2px;">▶️ Play</button>
+                                    <button onclick="this.parentElement.previousElementSibling.previousElementSibling.pause()" style="padding: 8px 12px; background: #f44336; color: white; border: none; border-radius: 4px; margin: 2px;">⏸️ Pause</button>
+                                </div>
                             </div>
                         `;
+                        
+                        // Test audio loading  
+                        const audio = audioPlayer.querySelector('audio');
+                        audio.addEventListener('loadstart', () => console.log('Mobile audio loading started'));
+                        audio.addEventListener('canplay', () => console.log('Mobile audio can play'));
+                        audio.addEventListener('error', (e) => console.error('Mobile audio error:', e));
                     }
                 } else {
                     throw new Error(result.detail || 'Failed');
