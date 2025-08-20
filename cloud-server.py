@@ -374,14 +374,30 @@ def get_mobile_html():
         
         async function loadLibrary() {
             const library = document.getElementById('audioLibrary');
-            library.innerHTML = '<p>Loading...</p>';
+            library.innerHTML = '<p>Loading library...</p>';
             
             try {
-                const response = await fetch('/library');
+                const response = await fetch('/library', { timeout: 10000 });
+                
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                
                 const articles = await response.json();
                 
                 if (articles.length === 0) {
-                    library.innerHTML = '<p>No audio articles yet. Use Chrome extension to convert articles!</p>';
+                    library.innerHTML = `
+                        <div style="text-align: center; padding: 20px;">
+                            <p>📱 No audio articles yet</p>
+                            <p style="font-size: 12px; margin-top: 10px;">Use Chrome extension to convert articles!</p>
+                            <div style="margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                                <p style="font-size: 12px; opacity: 0.8;">1. Install Chrome extension</p>
+                                <p style="font-size: 12px; opacity: 0.8;">2. Go to any article</p>
+                                <p style="font-size: 12px; opacity: 0.8;">3. Click extension → Convert</p>
+                                <p style="font-size: 12px; opacity: 0.8;">4. Audio appears here!</p>
+                            </div>
+                        </div>
+                    `;
                     return;
                 }
                 
@@ -402,7 +418,15 @@ def get_mobile_html():
                 `).join('');
                 
             } catch (error) {
-                library.innerHTML = '<p>Error loading library. Make sure Supabase is connected.</p>';
+                library.innerHTML = `
+                    <div style="text-align: center; padding: 20px;">
+                        <p>⚠️ Could not load library</p>
+                        <p style="font-size: 12px; margin-top: 10px;">Server may be starting up...</p>
+                        <button onclick="loadLibrary()" style="margin-top: 15px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px;">
+                            🔄 Try Again
+                        </button>
+                    </div>
+                `;
                 console.error('Library error:', error);
             }
         }
