@@ -447,24 +447,33 @@ async def convert_article(request: ConversionRequest):
         print(f"✅ Audio generated: {audio_filename} ({len(audio_data)} bytes)")
         
         # Store in Supabase if available
-        if supabase:
+        # Prepare base64 audio for storage (works even without storage bucket)
+        import base64
+        audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+        audio_url = f"data:audio/mpeg;base64,{audio_base64}"
+        
+        if supabase and request.save:
             try:
-                # Upload to Supabase storage
-                storage_path = f"audio/{audio_filename}"
-                supabase.storage.from_('audio-files').upload(
-                    storage_path, 
-                    audio_data,
-                    {"content-type": "audio/mpeg"}
-                )
+                # Try to use Supabase storage if available
+                try:
+                    storage_path = f"audio/{audio_filename}"
+                    supabase.storage.from_('audio-files').upload(
+                        storage_path, 
+                        audio_data,
+                        {"content-type": "audio/mpeg"}
+                    )
+                    # If storage works, use the public URL
+                    audio_url = supabase.storage.from_('audio-files').get_public_url(storage_path)
+                    print(f"✅ Uploaded to storage: {storage_path}")
+                except Exception as storage_error:
+                    print(f"⚠️ Storage upload failed (using base64): {storage_error}")
+                    # Keep using base64 URL
                 
-                # Get public URL
-                audio_url = supabase.storage.from_('audio-files').get_public_url(storage_path)
-                
-                # Store metadata in database
+                # Always store metadata in database (with base64 or storage URL)
                 article_data = {
                     'title': request.title,
                     'content': request.content,
-                    'audio_url': audio_url,
+                    'audio_url': audio_url,  # Either storage URL or base64
                     'audio_filename': audio_filename,
                     'source_url': request.url,
                     'voice': request.voice,
@@ -477,7 +486,7 @@ async def convert_article(request: ConversionRequest):
                 
                 if result.data:
                     article = result.data[0]
-                    print(f"✅ Stored in data lake: {article['id']}")
+                    print(f"✅ Stored in database: {article['id']}")
                     
                     return ArticleAudio(
                         id=article['id'],
@@ -494,12 +503,9 @@ async def convert_article(request: ConversionRequest):
                     )
                     
             except Exception as e:
-                print(f"⚠️ Supabase storage failed: {e}")
+                print(f"⚠️ Database save failed: {e}")
         
-        # Local storage fallback - return base64 encoded audio for immediate access
-        import base64
-        audio_base64 = base64.b64encode(audio_data).decode('utf-8')
-        
+        # Fallback - return audio without saving
         return ArticleAudio(
             id=str(uuid.uuid4()),
             title=request.title,
