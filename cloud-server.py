@@ -56,7 +56,7 @@ if SUPABASE_URL and SUPABASE_KEY:
     try:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         # Test connection with our simple table
-        test = supabase.table('article_audio').select('id').limit(1).execute()
+        test = supabase.table('articles').select('id').limit(1).execute()
         print(f"✅ Supabase connected to personal data lake")
     except Exception as e:
         print(f"⚠️ Supabase connection failed: {e}")
@@ -715,7 +715,7 @@ async def toggle_favorite(article_id: str):
     
     try:
         # Get current status
-        result = supabase.table('article_audio').select('is_favorite').eq('id', article_id).execute()
+        result = supabase.table('articles').select('is_favorite').eq('id', article_id).execute()
         
         if result.data:
             current_status = result.data[0]['is_favorite']
@@ -743,7 +743,7 @@ async def delete_article(article_id: str):
     
     try:
         # Get article info first
-        result = supabase.table('article_audio').select('audio_filename').eq('id', article_id).execute()
+        result = supabase.table('articles').select('audio_filename').eq('id', article_id).execute()
         
         if result.data:
             audio_filename = result.data[0].get('audio_filename')
@@ -756,7 +756,7 @@ async def delete_article(article_id: str):
                     print(f"⚠️ Failed to delete audio file: {e}")
             
             # Delete from database
-            delete_result = supabase.table('article_audio').delete().eq('id', article_id).execute()
+            delete_result = supabase.table('articles').delete().eq('id', article_id).execute()
             
             return {"message": "Article deleted", "id": article_id}
         else:
@@ -777,7 +777,7 @@ async def search_articles(
     
     try:
         # Search in title and content
-        result = supabase.table('article_audio').select('*')\
+        result = supabase.table('articles').select('*')\
             .or_(f"title.ilike.%{q}%,content.ilike.%{q}%")\
             .limit(limit)\
             .execute()
@@ -802,11 +802,11 @@ async def get_stats():
     
     try:
         # Get total count
-        all_articles = supabase.table('article_audio').select('id', count='exact').execute()
-        favorites = supabase.table('article_audio').select('id', count='exact').eq('is_favorite', True).execute()
+        all_articles = supabase.table('articles').select('id', count='exact').execute()
+        favorites = supabase.table('articles').select('id', count='exact').eq('is_favorite', True).execute()
         
         # Get total words
-        word_count_result = supabase.table('article_audio').select('word_count').execute()
+        word_count_result = supabase.table('articles').select('word_count').execute()
         total_words = sum(item['word_count'] for item in word_count_result.data) if word_count_result.data else 0
         
         return {
