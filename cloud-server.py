@@ -34,8 +34,8 @@ load_dotenv()
 
 app = FastAPI(
     title="Article-to-Audio Personal Data Lake", 
-    version="2.0.2",
-    description="🔥 ENHANCED Personal article-to-audio converter with Supabase data lake integration 🔥"
+    version="2.0.3",
+    description="🔥 MOBILE AUDIO LIBRARY - Personal article-to-audio converter with phone access 🔥"
 )
 
 # CORS for Chrome extension
