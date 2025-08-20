@@ -98,10 +98,8 @@ async def root(request: Request):
     """Serve responsive UI - mobile for mobile devices, web for desktop"""
     user_agent = request.headers.get("user-agent", "").lower()
     
-    # Detect mobile devices
-    is_mobile = any(device in user_agent for device in [
-        'mobile', 'iphone', 'android', 'blackberry', 'windows phone'
-    ])
+    # Force mobile interface for testing
+    is_mobile = True  # Temporarily force mobile interface
     
     # Embedded HTML UI (works in Render deployment)
     if is_mobile:
