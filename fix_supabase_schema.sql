@@ -6,16 +6,14 @@ CREATE TABLE articles (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     title TEXT NOT NULL,
     content TEXT NOT NULL,
-    url TEXT,
-    voice TEXT DEFAULT 'en-US-BrianNeural',
-    speed TEXT DEFAULT 'normal',
     audio_url TEXT,
     audio_filename TEXT,
+    source_url TEXT,  -- renamed from url to match code
+    voice TEXT DEFAULT 'en-US-BrianNeural',
     is_favorite BOOLEAN DEFAULT FALSE,
-    user_email TEXT DEFAULT 'aettefagh@gmail.com',
     word_count INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    metadata JSONB DEFAULT '{}'::jsonb  -- added metadata field
 );
 
 -- Enable RLS
@@ -43,23 +41,8 @@ WITH CHECK (bucket_id = 'audio-files');
 
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_articles_created_at ON articles(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_articles_user_email ON articles(user_email);
 CREATE INDEX IF NOT EXISTS idx_articles_is_favorite ON articles(is_favorite);
 
--- Create updated_at trigger
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-DROP TRIGGER IF EXISTS update_articles_updated_at ON articles;
-CREATE TRIGGER update_articles_updated_at 
-    BEFORE UPDATE ON articles 
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Insert test record
-INSERT INTO articles (title, content, voice, user_email, word_count) VALUES 
-('Test Article', 'This is a test article to verify the schema is working correctly.', 'en-US-BrianNeural', 'aettefagh@gmail.com', 10);
+-- Insert test record (optional)
+-- INSERT INTO articles (title, content, voice, word_count) VALUES 
+-- ('Test Article', 'This is a test article to verify the schema is working correctly.', 'en-US-BrianNeural', 10);
