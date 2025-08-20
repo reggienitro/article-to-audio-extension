@@ -77,6 +77,7 @@ class ConversionRequest(BaseModel):
     url: Optional[str] = Field(None, description="Source URL")
     voice: str = Field("en-US-BrianNeural", description="TTS voice")
     is_favorite: bool = Field(False, description="Mark as favorite")
+    save: bool = Field(True, description="Save to database")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Extra metadata for AI agents")
 
 class ArticleAudio(BaseModel):
