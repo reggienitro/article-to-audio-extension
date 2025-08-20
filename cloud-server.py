@@ -303,7 +303,7 @@ def get_mobile_html():
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Library - Mobile</title>
+    <title>Audio Library</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -332,172 +332,57 @@ def get_mobile_html():
 <body>
     <div class="header">
         <h1>🎧 Audio Library</h1>
-        <p>Your Chrome Extension Audio</p>
+        <p>Chrome Extension Conversions</p>
     </div>
     
-    <div class="library-section">
-        <button class="btn" id="refreshBtn" style="width: 100%; margin-bottom: 15px;">🔄 Refresh Library</button>
-        <div id="audioLibrary"></div>
+    <div style="padding: 15px;">
+        <button onclick="loadLibrary()" style="width: 100%; padding: 15px; background: #4CAF50; color: white; border: none; border-radius: 8px; font-size: 16px; margin-bottom: 20px;">
+            🔄 Load My Audio
+        </button>
+        <div id="audioList"></div>
     </div>
-    
-    <form class="convert-form" id="convertForm">
-        <div class="form-group">
-            <label for="title">Title:</label>
-            <input type="text" id="title" placeholder="Article title" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="content">Content:</label>
-            <textarea id="content" placeholder="Paste content here..." required></textarea>
-        </div>
-        
-        <div class="form-group">
-            <label for="voice">Voice:</label>
-            <select id="voice">
-                <option value="en-US-BrianNeural">Brian (US)</option>
-                <option value="en-US-JennyNeural">Jenny (US)</option>
-            </select>
-        </div>
-        
-        <button type="submit" class="btn" id="convertBtn">Convert to Audio</button>
-        
-        <div id="status"></div>
-        <div id="audioPlayer"></div>
-    </form>
 
     <script>
-        // Load audio library on page load
-        document.addEventListener('DOMContentLoaded', loadLibrary);
-        document.getElementById('refreshBtn').addEventListener('click', loadLibrary);
-        
-        async function loadLibrary() {
-            const library = document.getElementById('audioLibrary');
-            library.innerHTML = '<p>Loading library...</p>';
+        function loadLibrary() {
+            const list = document.getElementById('audioList');
+            list.innerHTML = '<p>Loading...</p>';
             
-            try {
-                const response = await fetch('/library', { timeout: 10000 });
-                
-                if (!response.ok) {
-                    throw new Error(`Server error: ${response.status}`);
-                }
-                
-                const articles = await response.json();
-                
-                if (articles.length === 0) {
-                    library.innerHTML = `
-                        <div style="text-align: center; padding: 20px;">
-                            <p>📱 No audio articles yet</p>
-                            <p style="font-size: 12px; margin-top: 10px;">Use Chrome extension to convert articles!</p>
-                            <div style="margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
-                                <p style="font-size: 12px; opacity: 0.8;">1. Install Chrome extension</p>
-                                <p style="font-size: 12px; opacity: 0.8;">2. Go to any article</p>
-                                <p style="font-size: 12px; opacity: 0.8;">3. Click extension → Convert</p>
-                                <p style="font-size: 12px; opacity: 0.8;">4. Audio appears here!</p>
-                            </div>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                library.innerHTML = articles.map(article => `
-                    <div class="audio-item" style="background: rgba(255,255,255,0.1); padding: 15px; margin: 10px 0; border-radius: 8px;">
-                        <h3 style="font-size: 14px; margin-bottom: 8px;">${article.title}</h3>
-                        <audio controls style="width: 100%; margin: 8px 0;" data-article-id="${article.id}">
-                            <source src="${article.audio_url}" type="audio/mpeg">
-                        </audio>
-                        <div style="display: flex; gap: 5px; margin-top: 8px;">
-                            <button onclick="changeSpeed('${article.id}', 0.75)" style="padding: 4px 8px; background: #2196F3; color: white; border: none; border-radius: 4px; font-size: 12px;">0.75x</button>
-                            <button onclick="changeSpeed('${article.id}', 1.0)" style="padding: 4px 8px; background: #4CAF50; color: white; border: none; border-radius: 4px; font-size: 12px;">1x</button>
-                            <button onclick="changeSpeed('${article.id}', 1.25)" style="padding: 4px 8px; background: #FF9800; color: white; border: none; border-radius: 4px; font-size: 12px;">1.25x</button>
-                            <button onclick="changeSpeed('${article.id}', 1.5)" style="padding: 4px 8px; background: #f44336; color: white; border: none; border-radius: 4px; font-size: 12px;">1.5x</button>
-                        </div>
-                        <p style="font-size: 11px; opacity: 0.7; margin-top: 5px;">${article.word_count} words • ${new Date(article.created_at).toLocaleDateString()}</p>
-                    </div>
-                `).join('');
-                
-            } catch (error) {
-                library.innerHTML = `
-                    <div style="text-align: center; padding: 20px;">
-                        <p>⚠️ Could not load library</p>
-                        <p style="font-size: 12px; margin-top: 10px;">Server may be starting up...</p>
-                        <button onclick="loadLibrary()" style="margin-top: 15px; padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 4px;">
-                            🔄 Try Again
-                        </button>
-                    </div>
-                `;
-                console.error('Library error:', error);
-            }
-        }
-        
-        function changeSpeed(articleId, speed) {
-            const audio = document.querySelector(`audio[data-article-id="${articleId}"]`);
-            if (audio) {
-                audio.playbackRate = speed;
-                console.log(`Speed changed to ${speed}x for article ${articleId}`);
-            }
-        }
-        
-        document.getElementById('convertForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const btn = document.getElementById('convertBtn');
-            const status = document.getElementById('status');
-            const audioPlayer = document.getElementById('audioPlayer');
-            
-            btn.disabled = true;
-            btn.textContent = 'Converting...';
-            status.innerHTML = '';
-            audioPlayer.innerHTML = '';
-            
-            try {
-                const response = await fetch('/convert', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        title: document.getElementById('title').value,
-                        content: document.getElementById('content').value,
-                        voice: document.getElementById('voice').value
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (response.ok && result.id) {
-                    status.innerHTML = '<div class="status success">✅ Success!</div>';
-                    
-                    if (result.audio_url) {
-                        audioPlayer.innerHTML = `
-                            <div class="audio-player">
-                                <h3>🎵 Ready to Play</h3>
-                                <audio controls style="width: 100%;" preload="metadata">
-                                    <source src="${result.audio_url}" type="audio/mpeg">
-                                </audio>
-                                <p style="margin-top: 8px; font-size: 12px; opacity: 0.8;">
-                                    ${result.word_count} words
-                                </p>
-                                <div style="margin-top: 10px; text-align: center;">
-                                    <button onclick="this.parentElement.previousElementSibling.previousElementSibling.play()" style="padding: 8px 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; margin: 2px;">▶️ Play</button>
-                                    <button onclick="this.parentElement.previousElementSibling.previousElementSibling.pause()" style="padding: 8px 12px; background: #f44336; color: white; border: none; border-radius: 4px; margin: 2px;">⏸️ Pause</button>
-                                </div>
-                            </div>
-                        `;
-                        
-                        // Test audio loading  
-                        const audio = audioPlayer.querySelector('audio');
-                        audio.addEventListener('loadstart', () => console.log('Mobile audio loading started'));
-                        audio.addEventListener('canplay', () => console.log('Mobile audio can play'));
-                        audio.addEventListener('error', (e) => console.error('Mobile audio error:', e));
+            fetch('/library')
+                .then(response => response.json())
+                .then(articles => {
+                    if (articles.length === 0) {
+                        list.innerHTML = '<p>No audio yet. Use Chrome extension to convert articles!</p>';
+                        return;
                     }
-                } else {
-                    throw new Error(result.detail || 'Failed');
-                }
-            } catch (error) {
-                status.innerHTML = `<div class="status error">❌ ${error.message}</div>`;
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Convert to Audio';
-            }
-        });
+                    
+                    list.innerHTML = articles.map(article => `
+                        <div style="background: rgba(255,255,255,0.1); padding: 15px; margin: 10px 0; border-radius: 8px;">
+                            <h3>${article.title}</h3>
+                            <audio controls style="width: 100%; margin: 10px 0;">
+                                <source src="${article.audio_url}" type="audio/mpeg">
+                            </audio>
+                            <div style="margin-top: 10px;">
+                                <button onclick="changeSpeed(this, 0.75)">0.75x</button>
+                                <button onclick="changeSpeed(this, 1.0)">1x</button>
+                                <button onclick="changeSpeed(this, 1.25)">1.25x</button>
+                                <button onclick="changeSpeed(this, 1.5)">1.5x</button>
+                            </div>
+                            <p>${article.word_count} words</p>
+                        </div>
+                    `).join('');
+                })
+                .catch(error => {
+                    list.innerHTML = '<p>Error loading. Click "Load My Audio" to try again.</p>';
+                });
+        }
+        
+        function changeSpeed(btn, speed) {
+            const audio = btn.parentElement.parentElement.querySelector('audio');
+            audio.playbackRate = speed;
+        }
+        
+        // Load on page load
+        loadLibrary();
     </script>
 </body>
 </html>
