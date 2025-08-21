@@ -57,7 +57,7 @@ if SUPABASE_URL and SUPABASE_KEY:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         # Test connection with our simple table
         test = supabase.table('articles').select('id').limit(1).execute()
-        print(f"✅ Supabase connected to personal data lake")
+        print(f"✅ Supabase connected to personal data lake (v2)")
     except Exception as e:
         print(f"⚠️ Supabase connection failed: {e}")
         print("Creating table if not exists...")
