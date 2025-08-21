@@ -411,6 +411,20 @@ async def debug_info():
         }
     }
 
+@app.post("/refresh-db")
+async def refresh_database():
+    """Force refresh database connection"""
+    global supabase
+    
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+            test = supabase.table('articles').select('id').limit(1).execute()
+            return {"status": "refreshed", "connected": True}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+    return {"status": "no_config"}
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
