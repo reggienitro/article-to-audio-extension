@@ -297,7 +297,853 @@ def get_web_html():
 """
 
 def get_mobile_html():
-    """Embedded mobile interface HTML"""
+    """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Audio Library - Listen Anywhere</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #1f2937;
+            --light: #f9fafb;
+            --gray: #6b7280;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+
+        /* Dark mode */
+        body.dark-mode {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+
+        body.dark-mode .container {
+            background: #1f2937;
+            color: #f9fafb;
+        }
+
+        body.dark-mode .article-card {
+            background: #374151;
+            border-color: #4b5563;
+        }
+
+        body.dark-mode .btn-secondary {
+            background: #4b5563;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        body.dark-mode .header {
+            background: rgba(31, 41, 55, 0.95);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: var(--light);
+            border-radius: var(--radius);
+        }
+
+        body.dark-mode .stats-bar {
+            background: #374151;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--gray);
+            margin-top: 0.25rem;
+        }
+
+        /* Search and Filter */
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border: 2px solid #e5e7eb;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .btn-secondary {
+            background: var(--light);
+            color: var(--dark);
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-icon {
+            width: 2.5rem;
+            height: 2.5rem;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+        }
+
+        /* Article Cards */
+        .articles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .article-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .article-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .article-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
+
+        .article-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+            line-height: 1.4;
+        }
+
+        body.dark-mode .article-title {
+            color: var(--light);
+        }
+
+        .article-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.875rem;
+            color: var(--gray);
+            margin-bottom: 1rem;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        /* Audio Player */
+        .audio-player {
+            background: var(--light);
+            border-radius: var(--radius);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        body.dark-mode .audio-player {
+            background: #1f2937;
+        }
+
+        .audio-element {
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        .player-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .speed-controls {
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .speed-btn {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .speed-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .speed-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        body.dark-mode .speed-btn {
+            background: #374151;
+            border-color: #4b5563;
+            color: var(--light);
+        }
+
+        body.dark-mode .speed-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        /* Voice Selector */
+        .voice-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .voice-dropdown {
+            padding: 0.5rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+        }
+
+        body.dark-mode .voice-dropdown {
+            background: #374151;
+            border-color: #4b5563;
+            color: var(--light);
+        }
+
+        /* Article Actions */
+        .article-actions {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: space-between;
+            padding-top: 1rem;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        body.dark-mode .action-btn {
+            background: #374151;
+            border-color: #4b5563;
+            color: var(--light);
+        }
+
+        .action-btn:hover {
+            background: var(--light);
+        }
+
+        .action-btn.active {
+            color: var(--danger);
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray);
+        }
+
+        .spinner {
+            border: 3px solid var(--light);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray);
+        }
+
+        .empty-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            box-shadow: var(--shadow-lg);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+            background: var(--primary-dark);
+        }
+
+        /* Toast Notifications */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 2000;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                margin: 1rem;
+                padding: 0.75rem;
+            }
+
+            .articles-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span>🎧</span>
+                <span>Audio Library</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-icon btn-secondary" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+                    <span id="theme-icon">🌙</span>
+                </button>
+                <button class="btn btn-primary" onclick="loadArticles()">
+                    <span>🔄</span>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value" id="total-articles">0</div>
+                <div class="stat-label">Articles</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="total-time">0</div>
+                <div class="stat-label">Minutes</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="favorites-count">0</div>
+                <div class="stat-label">Favorites</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="listened-count">0</div>
+                <div class="stat-label">Listened</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-input" placeholder="Search articles..." id="search-input" onkeyup="filterArticles()">
+            </div>
+            <select class="btn btn-secondary" id="sort-select" onchange="sortArticles()">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+                <option value="longest">Longest First</option>
+                <option value="shortest">Shortest First</option>
+                <option value="favorites">Favorites First</option>
+            </select>
+            <select class="btn btn-secondary" id="filter-voice" onchange="filterArticles()">
+                <option value="all">All Voices</option>
+                <option value="Christopher">Christopher</option>
+                <option value="Brian">Brian</option>
+                <option value="Emma">Emma</option>
+                <option value="Jenny">Jenny</option>
+            </select>
+        </div>
+
+        <div id="articles-container">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading your audio library...</p>
+            </div>
+        </div>
+    </div>
+
+    <button class="fab" onclick="loadArticles()" title="Reload Articles">
+        🔄
+    </button>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let articles = [];
+        let currentlyPlaying = null;
+        let listenedArticles = new Set(JSON.parse(localStorage.getItem('listenedArticles') || '[]'));
+
+        // Load articles on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            loadArticles();
+            applyTheme();
+        });
+
+        async function loadArticles() {
+            const container = document.getElementById('articles-container');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading your audio library...</p></div>';
+
+            try {
+                const response = await fetch('/library');
+                articles = await response.json();
+                
+                if (articles.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">📚</div>
+                            <h2>No articles yet</h2>
+                            <p>Convert articles with the Chrome extension to see them here</p>
+                        </div>
+                    `;
+                } else {
+                    displayArticles(articles);
+                    updateStats();
+                }
+            } catch (error) {
+                console.error('Error loading articles:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">❌</div>
+                        <h2>Error loading articles</h2>
+                        <p>Please try refreshing the page</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayArticles(articlesToShow) {
+            const container = document.getElementById('articles-container');
+            container.innerHTML = '<div class="articles-grid">' + articlesToShow.map(article => createArticleCard(article)).join('') + '</div>';
+            
+            // Restore audio states
+            articlesToShow.forEach(article => {
+                const audio = document.getElementById(`audio-${article.id}`);
+                if (audio) {
+                    audio.addEventListener('ended', () => markAsListened(article.id));
+                }
+            });
+        }
+
+        function createArticleCard(article) {
+            const isListened = listenedArticles.has(article.id);
+            const voiceName = article.voice.replace('en-US-', '').replace('Neural', '');
+            const estimatedMinutes = Math.ceil(article.word_count / 150);
+            
+            return `
+                <div class="article-card" id="card-${article.id}">
+                    <div class="article-header">
+                        <div>
+                            <h3 class="article-title">${article.title}</h3>
+                            <div class="article-meta">
+                                <span class="meta-item">📝 ${article.word_count} words</span>
+                                <span class="meta-item">⏱️ ~${estimatedMinutes} min</span>
+                                <span class="meta-item">🎤 ${voiceName}</span>
+                            </div>
+                        </div>
+                        ${isListened ? '<span title="Listened">✅</span>' : ''}
+                    </div>
+                    
+                    <div class="audio-player">
+                        <audio controls class="audio-element" id="audio-${article.id}" src="${article.audio_url}"></audio>
+                        
+                        <div class="player-controls">
+                            <div class="speed-controls">
+                                <button class="speed-btn" onclick="setSpeed('${article.id}', 0.75)">0.75x</button>
+                                <button class="speed-btn active" onclick="setSpeed('${article.id}', 1)">1x</button>
+                                <button class="speed-btn" onclick="setSpeed('${article.id}', 1.25)">1.25x</button>
+                                <button class="speed-btn" onclick="setSpeed('${article.id}', 1.5)">1.5x</button>
+                                <button class="speed-btn" onclick="setSpeed('${article.id}', 2)">2x</button>
+                            </div>
+                            
+                            <div class="voice-selector">
+                                <select class="voice-dropdown" onchange="changeVoice('${article.id}', this.value)" disabled title="Coming soon">
+                                    <option value="${article.voice}">${voiceName}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="article-actions">
+                        <button class="action-btn ${article.is_favorite ? 'active' : ''}" onclick="toggleFavorite('${article.id}')">
+                            ${article.is_favorite ? '❤️' : '🤍'} Favorite
+                        </button>
+                        <button class="action-btn" onclick="shareArticle('${article.id}')">
+                            📤 Share
+                        </button>
+                        <button class="action-btn" onclick="deleteArticle('${article.id}')">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function setSpeed(articleId, speed) {
+            const audio = document.getElementById(`audio-${articleId}`);
+            if (audio) {
+                audio.playbackRate = speed;
+                
+                // Update active button
+                const card = document.getElementById(`card-${articleId}`);
+                const buttons = card.querySelectorAll('.speed-btn');
+                buttons.forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.textContent === `${speed}x`) {
+                        btn.classList.add('active');
+                    }
+                });
+                
+                showToast(`Playback speed: ${speed}x`);
+            }
+        }
+
+        async function toggleFavorite(articleId) {
+            try {
+                const response = await fetch(`/article/${articleId}/favorite`, {
+                    method: 'PUT'
+                });
+                
+                if (response.ok) {
+                    const article = articles.find(a => a.id === articleId);
+                    article.is_favorite = !article.is_favorite;
+                    displayArticles(articles);
+                    updateStats();
+                    showToast(article.is_favorite ? 'Added to favorites' : 'Removed from favorites');
+                }
+            } catch (error) {
+                console.error('Error toggling favorite:', error);
+                showToast('Error updating favorite status');
+            }
+        }
+
+        async function deleteArticle(articleId) {
+            if (!confirm('Are you sure you want to delete this article?')) return;
+            
+            try {
+                const response = await fetch(`/article/${articleId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    articles = articles.filter(a => a.id !== articleId);
+                    displayArticles(articles);
+                    updateStats();
+                    showToast('Article deleted');
+                }
+            } catch (error) {
+                console.error('Error deleting article:', error);
+                showToast('Error deleting article');
+            }
+        }
+
+        function shareArticle(articleId) {
+            const article = articles.find(a => a.id === articleId);
+            const url = article.source_url || window.location.href;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: article.title,
+                    text: `Listen to: ${article.title}`,
+                    url: url
+                });
+            } else {
+                navigator.clipboard.writeText(url);
+                showToast('Link copied to clipboard!');
+            }
+        }
+
+        function filterArticles() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const voiceFilter = document.getElementById('filter-voice').value;
+            
+            let filtered = articles;
+            
+            if (searchTerm) {
+                filtered = filtered.filter(a => 
+                    a.title.toLowerCase().includes(searchTerm) ||
+                    a.content.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            if (voiceFilter !== 'all') {
+                filtered = filtered.filter(a => 
+                    a.voice.includes(voiceFilter)
+                );
+            }
+            
+            displayArticles(filtered);
+        }
+
+        function sortArticles() {
+            const sortBy = document.getElementById('sort-select').value;
+            let sorted = [...articles];
+            
+            switch(sortBy) {
+                case 'newest':
+                    sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    break;
+                case 'oldest':
+                    sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                    break;
+                case 'longest':
+                    sorted.sort((a, b) => b.word_count - a.word_count);
+                    break;
+                case 'shortest':
+                    sorted.sort((a, b) => a.word_count - b.word_count);
+                    break;
+                case 'favorites':
+                    sorted.sort((a, b) => b.is_favorite - a.is_favorite);
+                    break;
+            }
+            
+            displayArticles(sorted);
+        }
+
+        function updateStats() {
+            document.getElementById('total-articles').textContent = articles.length;
+            document.getElementById('total-time').textContent = Math.ceil(articles.reduce((sum, a) => sum + (a.word_count / 150), 0));
+            document.getElementById('favorites-count').textContent = articles.filter(a => a.is_favorite).length;
+            document.getElementById('listened-count').textContent = listenedArticles.size;
+        }
+
+        function markAsListened(articleId) {
+            listenedArticles.add(articleId);
+            localStorage.setItem('listenedArticles', JSON.stringify([...listenedArticles]));
+            displayArticles(articles);
+            updateStats();
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+        }
+
+        function applyTheme() {
+            const isDark = localStorage.getItem('darkMode') === 'true';
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+                document.getElementById('theme-icon').textContent = '☀️';
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Change voice (for future implementation with re-conversion)
+        async function changeVoice(articleId, newVoice) {
+            // This would trigger a re-conversion with the new voice
+            showToast('Voice change coming soon!');
+        }
+    </script>
+</body>
+</html>
+"""
     return """
 <!DOCTYPE html>
 <html lang="en">
