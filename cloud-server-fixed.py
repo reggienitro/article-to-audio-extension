@@ -99,9 +99,8 @@ async def root(request: Request):
     """Serve responsive UI - mobile for mobile devices, web for desktop"""
     user_agent = request.headers.get("user-agent", "").lower()
     
-    # Always use the enhanced mobile interface for all devices
-    # It's responsive and works great on desktop too
-    is_mobile = True
+    # Force mobile interface for testing
+    is_mobile = True  # Temporarily force mobile interface
     
     # Embedded HTML UI (works in Render deployment)
     if is_mobile:
@@ -1143,7 +1142,92 @@ def get_mobile_html():
         }
     </script>
 </body>
-</html>"""
+</html>
+"""
+
+@app.get("/debug")
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 15px;
+        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { font-size: 2rem; margin-bottom: 5px; }
+        .convert-form { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 14px; }
+        input, textarea, select { width: 100%; padding: 10px; border: none; border-radius: 8px; font-size: 16px; }
+        textarea { min-height: 100px; }
+        .btn { width: 100%; background: #4CAF50; color: white; padding: 15px; border: none; border-radius: 8px; font-size: 18px; margin-top: 10px; }
+        .btn:disabled { background: #cccccc; }
+        .status { margin-top: 15px; padding: 10px; border-radius: 8px; font-size: 14px; }
+        .status.success { background: rgba(76, 175, 80, 0.3); }
+        .status.error { background: rgba(244, 67, 54, 0.3); }
+        .audio-player { margin-top: 15px; }
+        audio { width: 100%; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎧 Audio Library</h1>
+        <p>Chrome Extension Conversions</p>
+    </div>
+    
+    <div style="padding: 15px;">
+        <button onclick="loadLibrary()" style="width: 100%; padding: 15px; background: #4CAF50; color: white; border: none; border-radius: 8px; font-size: 16px; margin-bottom: 20px;">
+            🔄 Load My Audio
+        </button>
+        <div id="audioList"></div>
+    </div>
+
+    <script>
+        function loadLibrary() {
+            const list = document.getElementById('audioList');
+            list.innerHTML = '<p>Loading...</p>';
+            
+            fetch('/library')
+                .then(response => response.json())
+                .then(articles => {
+                    if (articles.length === 0) {
+                        list.innerHTML = '<p>No audio yet. Use Chrome extension to convert articles!</p>';
+                        return;
+                    }
+                    
+                    list.innerHTML = articles.map(article => `
+                        <div style="background: rgba(255,255,255,0.1); padding: 15px; margin: 10px 0; border-radius: 8px;">
+                            <h3>${article.title}</h3>
+                            <audio controls style="width: 100%; margin: 10px 0;">
+                                <source src="${article.audio_url}" type="audio/mpeg">
+                            </audio>
+                            <div style="margin-top: 10px;">
+                                <button onclick="changeSpeed(this, 0.75)">0.75x</button>
+                                <button onclick="changeSpeed(this, 1.0)">1x</button>
+                                <button onclick="changeSpeed(this, 1.25)">1.25x</button>
+                                <button onclick="changeSpeed(this, 1.5)">1.5x</button>
+                            </div>
+                            <p>${article.word_count} words</p>
+                        </div>
+                    `).join('');
+                })
+                .catch(error => {
+                    list.innerHTML = '<p>Error loading. Click "Load My Audio" to try again.</p>';
+                });
+        }
+        
+        function changeSpeed(btn, speed) {
+            const audio = btn.parentElement.parentElement.querySelector('audio');
+            audio.playbackRate = speed;
+        }
+        
+        // Load on page load
+        loadLibrary();
+    </script>
+</body>
+</html>
+"""
 
 @app.get("/debug")
 async def debug_info():
